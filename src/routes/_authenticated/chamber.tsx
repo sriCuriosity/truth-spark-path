@@ -3,6 +3,7 @@ import { useEffect, useRef, useState, useCallback } from "react";
 import { ArrowLeft } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { ChamberSafetyFooter } from "@/components/chamber-safety-footer";
 
 export const Route = createFileRoute("/_authenticated/chamber")({
   head: () => ({ meta: [{ title: "NEXUS — The Chamber" }] }),
@@ -96,8 +97,9 @@ function Chamber() {
           onChange={(e) => onChange(e.target.value)}
           placeholder="What's actually on your mind?"
           className="flex-1 resize-none bg-background px-6 py-8 text-lg leading-relaxed text-foreground outline-none placeholder:text-muted-foreground/50"
-          style={{ minHeight: "70vh" }}
+          style={{ minHeight: "60vh" }}
         />
+        <ChamberSafetyFooter />
       </div>
     </div>
   );

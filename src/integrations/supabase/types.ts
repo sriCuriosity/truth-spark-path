@@ -349,8 +349,10 @@ export type Database = {
       }
       profiles: {
         Row: {
+          ai_voice_history: Json | null
           avatar_url: string | null
           bio: string | null
+          content_preferences: Json | null
           created_at: string | null
           current_tier: string | null
           display_name: string | null
@@ -359,13 +361,20 @@ export type Database = {
           onboarding_complete: boolean | null
           onboarding_phase: string | null
           open_questions: string[] | null
+          preferred_ai_voice: string | null
+          safety_preferences: Json | null
+          sovereignty_settings: Json | null
           tier_progress: Json | null
+          tier_visibility: string | null
+          total_xp: number | null
           updated_at: string | null
           values: string[] | null
         }
         Insert: {
+          ai_voice_history?: Json | null
           avatar_url?: string | null
           bio?: string | null
+          content_preferences?: Json | null
           created_at?: string | null
           current_tier?: string | null
           display_name?: string | null
@@ -374,13 +383,20 @@ export type Database = {
           onboarding_complete?: boolean | null
           onboarding_phase?: string | null
           open_questions?: string[] | null
+          preferred_ai_voice?: string | null
+          safety_preferences?: Json | null
+          sovereignty_settings?: Json | null
           tier_progress?: Json | null
+          tier_visibility?: string | null
+          total_xp?: number | null
           updated_at?: string | null
           values?: string[] | null
         }
         Update: {
+          ai_voice_history?: Json | null
           avatar_url?: string | null
           bio?: string | null
+          content_preferences?: Json | null
           created_at?: string | null
           current_tier?: string | null
           display_name?: string | null
@@ -389,7 +405,12 @@ export type Database = {
           onboarding_complete?: boolean | null
           onboarding_phase?: string | null
           open_questions?: string[] | null
+          preferred_ai_voice?: string | null
+          safety_preferences?: Json | null
+          sovereignty_settings?: Json | null
           tier_progress?: Json | null
+          tier_visibility?: string | null
+          total_xp?: number | null
           updated_at?: string | null
           values?: string[] | null
         }

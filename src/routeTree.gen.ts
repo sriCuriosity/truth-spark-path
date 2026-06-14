@@ -20,6 +20,7 @@ import { Route as AuthenticatedDomainsRouteImport } from './routes/_authenticate
 import { Route as AuthenticatedDashboardRouteImport } from './routes/_authenticated/dashboard'
 import { Route as AuthenticatedCortexRouteImport } from './routes/_authenticated/cortex'
 import { Route as AuthenticatedCommunityRouteImport } from './routes/_authenticated/community'
+import { Route as AuthenticatedCoachRouteImport } from './routes/_authenticated/coach'
 import { Route as AuthenticatedChamberRouteImport } from './routes/_authenticated/chamber'
 
 const AuthRoute = AuthRouteImport.update({
@@ -76,6 +77,11 @@ const AuthenticatedCommunityRoute = AuthenticatedCommunityRouteImport.update({
   path: '/community',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
+const AuthenticatedCoachRoute = AuthenticatedCoachRouteImport.update({
+  id: '/coach',
+  path: '/coach',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
 const AuthenticatedChamberRoute = AuthenticatedChamberRouteImport.update({
   id: '/chamber',
   path: '/chamber',
@@ -86,6 +92,7 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
   '/chamber': typeof AuthenticatedChamberRoute
+  '/coach': typeof AuthenticatedCoachRoute
   '/community': typeof AuthenticatedCommunityRoute
   '/cortex': typeof AuthenticatedCortexRoute
   '/dashboard': typeof AuthenticatedDashboardRoute
@@ -99,6 +106,7 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
   '/chamber': typeof AuthenticatedChamberRoute
+  '/coach': typeof AuthenticatedCoachRoute
   '/community': typeof AuthenticatedCommunityRoute
   '/cortex': typeof AuthenticatedCortexRoute
   '/dashboard': typeof AuthenticatedDashboardRoute
@@ -114,6 +122,7 @@ export interface FileRoutesById {
   '/_authenticated': typeof AuthenticatedRouteRouteWithChildren
   '/auth': typeof AuthRoute
   '/_authenticated/chamber': typeof AuthenticatedChamberRoute
+  '/_authenticated/coach': typeof AuthenticatedCoachRoute
   '/_authenticated/community': typeof AuthenticatedCommunityRoute
   '/_authenticated/cortex': typeof AuthenticatedCortexRoute
   '/_authenticated/dashboard': typeof AuthenticatedDashboardRoute
@@ -129,6 +138,7 @@ export interface FileRouteTypes {
     | '/'
     | '/auth'
     | '/chamber'
+    | '/coach'
     | '/community'
     | '/cortex'
     | '/dashboard'
@@ -142,6 +152,7 @@ export interface FileRouteTypes {
     | '/'
     | '/auth'
     | '/chamber'
+    | '/coach'
     | '/community'
     | '/cortex'
     | '/dashboard'
@@ -156,6 +167,7 @@ export interface FileRouteTypes {
     | '/_authenticated'
     | '/auth'
     | '/_authenticated/chamber'
+    | '/_authenticated/coach'
     | '/_authenticated/community'
     | '/_authenticated/cortex'
     | '/_authenticated/dashboard'
@@ -251,6 +263,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedCommunityRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/coach': {
+      id: '/_authenticated/coach'
+      path: '/coach'
+      fullPath: '/coach'
+      preLoaderRoute: typeof AuthenticatedCoachRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/chamber': {
       id: '/_authenticated/chamber'
       path: '/chamber'
@@ -263,6 +282,7 @@ declare module '@tanstack/react-router' {
 
 interface AuthenticatedRouteRouteChildren {
   AuthenticatedChamberRoute: typeof AuthenticatedChamberRoute
+  AuthenticatedCoachRoute: typeof AuthenticatedCoachRoute
   AuthenticatedCommunityRoute: typeof AuthenticatedCommunityRoute
   AuthenticatedCortexRoute: typeof AuthenticatedCortexRoute
   AuthenticatedDashboardRoute: typeof AuthenticatedDashboardRoute
@@ -275,6 +295,7 @@ interface AuthenticatedRouteRouteChildren {
 
 const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedChamberRoute: AuthenticatedChamberRoute,
+  AuthenticatedCoachRoute: AuthenticatedCoachRoute,
   AuthenticatedCommunityRoute: AuthenticatedCommunityRoute,
   AuthenticatedCortexRoute: AuthenticatedCortexRoute,
   AuthenticatedDashboardRoute: AuthenticatedDashboardRoute,
@@ -296,3 +317,13 @@ const rootRouteChildren: RootRouteChildren = {
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
+
+import type { getRouter } from './router.tsx'
+import type { startInstance } from './start.ts'
+declare module '@tanstack/react-start' {
+  interface Register {
+    ssr: true
+    router: Awaited<ReturnType<typeof getRouter>>
+    config: Awaited<ReturnType<typeof startInstance.getOptions>>
+  }
+}

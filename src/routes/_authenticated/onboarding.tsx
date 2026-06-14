@@ -23,6 +23,7 @@ function Onboarding() {
   const [customValue, setCustomValue] = useState("");
   const [emotion, setEmotion] = useState<string | null>(null);
   const [energy, setEnergy] = useState(6);
+  const [tierVisibility, setTierVisibility] = useState("full");
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
@@ -46,6 +47,7 @@ function Onboarding() {
         bio,
         values,
         open_questions: openQ ? [openQ] : [],
+        tier_visibility: tierVisibility,
         onboarding_complete: true,
       }).eq("id", u.user.id);
       if (error) throw error;
@@ -187,6 +189,20 @@ function Onboarding() {
                       <p className="mt-2 text-sm text-muted-foreground">{c.body}</p>
                     </div>
                   ))}
+                </div>
+                <div className="mt-6 rounded-lg border border-border bg-elevated p-4">
+                  <p className="text-sm font-medium">You are not your grade</p>
+                  <p className="mt-1 text-xs text-muted-foreground">Tiers reflect real actions — but you can hide them if ladders trigger old habits.</p>
+                  <select
+                    value={tierVisibility}
+                    onChange={(e) => setTierVisibility(e.target.value)}
+                    className="mt-3 w-full rounded-md border border-border bg-background px-3 py-2 text-sm outline-none focus:border-primary"
+                  >
+                    <option value="full">Show my tier (default)</option>
+                    <option value="self_only">Only show tier to me</option>
+                    <option value="hidden">Hide tiers entirely</option>
+                    <option value="milestones">Only on new tier reached</option>
+                  </select>
                 </div>
               </div>
             )}

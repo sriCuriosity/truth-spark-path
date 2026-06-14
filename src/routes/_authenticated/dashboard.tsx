@@ -2,18 +2,19 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { motion } from "framer-motion";
 import { Plus, Sparkle } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { AppShell } from "@/components/app-shell";
 import { CortexEntryCard, type CortexEntry } from "@/components/cortex-entry-card";
 import { AddToCortexModal } from "@/components/add-to-cortex-modal";
+import { checkAddictionPatterns } from "@/lib/anti-addiction";
+import { nextTier, shouldShowTier, tierProgress, type TierName } from "@/lib/tiers";
 
 export const Route = createFileRoute("/_authenticated/dashboard")({
   head: () => ({ meta: [{ title: "NEXUS — Dashboard" }] }),
   component: Dashboard,
 });
-
-const TIERS = ["seeker", "builder", "contributor", "architect"];
 
 function Dashboard() {
   const [addOpen, setAddOpen] = useState(false);
@@ -27,6 +28,13 @@ function Dashboard() {
       return data;
     },
   });
+
+  useEffect(() => {
+    if (!profile?.id) return;
+    checkAddictionPatterns(profile.id).then((alert) => {
+      if (alert) toast.message(alert.type === "health_concern" ? "Take a break" : "Pause and reflect", { description: alert.message, duration: 10000 });
+    });
+  }, [profile?.id]);
 
   const { data: entries = [], refetch: refetchEntries } = useQuery<CortexEntry[]>({
     queryKey: ["cortex-entries-recent"],
@@ -58,14 +66,15 @@ function Dashboard() {
     },
   });
 
-  const tierIdx = Math.max(0, TIERS.indexOf(profile?.current_tier ?? "seeker"));
-  const nextTier = TIERS[tierIdx + 1] ?? "—";
-  const progress = Math.min(100, ((entries.length % 10) / 10) * 100);
+  const currentTier = (profile?.current_tier ?? "seeker") as TierName;
+  const totalXp = (profile as { total_xp?: number })?.total_xp ?? 0;
+  const nxt = nextTier(currentTier);
+  const progress = tierProgress(totalXp, currentTier);
+  const showTier = shouldShowTier((profile as { tier_visibility?: string })?.tier_visibility);
 
   return (
     <AppShell title="Dashboard">
       <div className="grid gap-6 lg:grid-cols-[320px_1fr_280px]">
-        {/* LEFT */}
         <div className="space-y-4">
           <div className="nexus-card p-5">
             <div className="flex items-center gap-3">
@@ -97,35 +106,36 @@ function Dashboard() {
             </div>
           )}
 
-          <div className="nexus-card p-5">
-            <div className="flex items-center justify-between">
-              <p className="text-xs uppercase tracking-wider text-muted-foreground">Current tier</p>
-              <span className="font-mono text-[11px] text-muted-foreground">→ {nextTier}</span>
-            </div>
-            <div className="mt-3 flex items-center gap-4">
-              <div className="relative grid h-16 w-16 place-items-center">
-                <svg viewBox="0 0 36 36" className="absolute inset-0">
-                  <circle cx="18" cy="18" r="15" fill="none" stroke="var(--border)" strokeWidth="2.5" />
-                  <circle cx="18" cy="18" r="15" fill="none" stroke="var(--primary)" strokeWidth="2.5"
-                    strokeDasharray={`${(progress / 100) * 94.25} 94.25`}
-                    transform="rotate(-90 18 18)" strokeLinecap="round" />
-                </svg>
-                <Sparkle className="h-6 w-6 text-primary" />
+          {showTier && (
+            <div className="nexus-card p-5">
+              <div className="flex items-center justify-between">
+                <p className="text-xs uppercase tracking-wider text-muted-foreground">Current tier</p>
+                {nxt && <span className="font-mono text-[11px] text-muted-foreground">→ {nxt.label}</span>}
               </div>
-              <div>
-                <h3 className="font-display text-xl font-bold capitalize">{profile?.current_tier ?? "Seeker"}</h3>
-                <p className="text-xs text-muted-foreground">{entries.length} entries · keep going</p>
+              <div className="mt-3 flex items-center gap-4">
+                <div className="relative grid h-16 w-16 place-items-center">
+                  <svg viewBox="0 0 36 36" className="absolute inset-0">
+                    <circle cx="18" cy="18" r="15" fill="none" stroke="var(--border)" strokeWidth="2.5" />
+                    <circle cx="18" cy="18" r="15" fill="none" stroke="var(--primary)" strokeWidth="2.5"
+                      strokeDasharray={`${(progress / 100) * 94.25} 94.25`}
+                      transform="rotate(-90 18 18)" strokeLinecap="round" />
+                  </svg>
+                  <Sparkle className="h-6 w-6 text-primary" />
+                </div>
+                <div>
+                  <h3 className="font-display text-xl font-bold capitalize">{currentTier}</h3>
+                  <p className="text-xs text-muted-foreground">{totalXp} XP · {entries.length} entries</p>
+                </div>
               </div>
+              <ul className="mt-4 space-y-1.5 text-xs text-muted-foreground">
+                <li>• Document 3 perspective shifts</li>
+                <li>• Run 1 experiment with honest results</li>
+                <li>• Validate someone else's work</li>
+              </ul>
             </div>
-            <ul className="mt-4 space-y-1.5 text-xs text-muted-foreground">
-              <li>• Document 3 perspective shifts</li>
-              <li>• Run 1 experiment with honest results</li>
-              <li>• Validate someone else's work</li>
-            </ul>
-          </div>
+          )}
         </div>
 
-        {/* CENTER */}
         <div>
           <div className="mb-4 flex items-center justify-between">
             <div>
@@ -152,7 +162,6 @@ function Dashboard() {
           )}
         </div>
 
-        {/* RIGHT */}
         <div className="space-y-4">
           {spike ? (
             <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}
@@ -186,6 +195,11 @@ function Dashboard() {
             ) : (
               <p className="mt-2 text-sm text-muted-foreground">No recent check-in. How are you, actually?</p>
             )}
+          </Link>
+
+          <Link to="/coach" className="block nexus-card p-5 transition hover:border-primary/40">
+            <p className="text-[10px] uppercase tracking-wider text-muted-foreground">AI Coach</p>
+            <p className="mt-2 text-sm text-muted-foreground">Socratic questions with full transparency — ask "Why this question?" anytime.</p>
           </Link>
         </div>
       </div>

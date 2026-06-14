@@ -1,14 +1,16 @@
 import { Link, useRouterState, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import {
-  Brain, Compass, Users, Lock, GraduationCap, HeartPulse, Settings, Bell, Search, LogOut, Sparkles,
+  Brain, Compass, Users, Lock, GraduationCap, HeartPulse, Settings, Bell, Search, LogOut, Sparkles, MessageCircle,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useQuery } from "@tanstack/react-query";
+import { shouldShowTier } from "@/lib/tiers";
 
 const NAV = [
   { to: "/dashboard", label: "Dashboard", icon: Sparkles },
   { to: "/cortex", label: "My Cortex", icon: Brain },
+  { to: "/coach", label: "AI Coach", icon: MessageCircle },
   { to: "/domains", label: "Explore Domains", icon: Compass },
   { to: "/community", label: "Learning Circle", icon: Users },
   { to: "/chamber", label: "The Chamber", icon: Lock },
@@ -88,7 +90,9 @@ export function AppShell({ title, children, fullBleed = false }: { title: string
             </div>
             <div className="min-w-0 flex-1">
               <p className="truncate text-sm font-medium">{profile?.display_name ?? "You"}</p>
-              <p className="truncate text-[11px] uppercase tracking-wider text-muted-foreground">{profile?.current_tier ?? "seeker"}</p>
+              {shouldShowTier((profile as any)?.tier_visibility) && (
+                <p className="truncate text-[11px] uppercase tracking-wider text-muted-foreground">{profile?.current_tier ?? "seeker"}</p>
+              )}
             </div>
             <button onClick={signOut} className="grid h-8 w-8 place-items-center rounded-md text-muted-foreground hover:bg-elevated hover:text-foreground" title="Sign out">
               <LogOut className="h-4 w-4" />

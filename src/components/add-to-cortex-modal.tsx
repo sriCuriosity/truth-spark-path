@@ -5,6 +5,8 @@ import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { ENTRY_TYPE_META, type EntryType } from "./cortex-entry-card";
 import { checkAchievements } from "@/lib/achievements";
+import { awardXp } from "@/lib/tiers";
+import { trackSessionActivity } from "@/lib/anti-addiction";
 import { AchievementSpike, type AchievementSpikeData } from "./achievement-spike";
 
 const TYPES: EntryType[] = ["action", "perspective_shift", "experiment", "contribution"];
@@ -47,11 +49,18 @@ export function AddToCortexModal({ open, onClose, onCreated }: { open: boolean; 
         what_i_learned: type === "experiment" ? whatLearned : null,
       }).select().single();
       if (error) throw error;
+      trackSessionActivity("cortex_entry");
+      const tierResult = await awardXp(u.user.id, "cortex_entry_created", data.id);
       toast.success("Added to your Cortex.");
+      if (tierResult.tierChanged) {
+        toast.message(`You've reached ${tierResult.currentTier} tier`, {
+          description: "This reflects the real things you've done. The tier is just a mirror. You are what you did.",
+          duration: 8000,
+        });
+      }
       reset();
       onCreated?.();
       onClose();
-      // achievements
       const awarded = await checkAchievements(u.user.id, data.title);
       if (awarded.length > 0) {
         const first = awarded[0];
