@@ -1,6 +1,7 @@
 import { Link, useRouterState, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import {
+  Brain, Compass, Users, Lock, GraduationCap, HeartPulse, Settings, Bell, Search, LogOut, Sparkles, Layers,
   Brain, Compass, Users, Lock, GraduationCap, HeartPulse, Settings, Bell, Search, LogOut, Sparkles, Layers, MessageCircle,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
@@ -41,6 +42,17 @@ export function AppShell({ title, children, fullBleed = false }: { title: string
       const { count } = await supabase.from("notifications").select("*", { count: "exact", head: true }).eq("user_id", u.user.id).eq("read", false);
       return count ?? 0;
     },
+  });
+
+  const { data: pendingSuggestionsCount = 0 } = useQuery({
+    queryKey: ["pending-suggestions-count"],
+    queryFn: async () => {
+      const { data: u } = await supabase.auth.getUser();
+      if (!u.user) return 0;
+      const { count } = await supabase.from("cortex_suggestions").select("*", { count: "exact", head: true }).eq("user_id", u.user.id).eq("status", "pending");
+      return count ?? 0;
+    },
+    refetchInterval: 60000,
   });
 
   const { data: pendingSuggestionsCount = 0 } = useQuery({
@@ -105,6 +117,25 @@ export function AppShell({ title, children, fullBleed = false }: { title: string
             </span>
             Suggestions
           </Link>
+
+          {/* Suggestions nav link */}
+          <Link
+            to="/integrations/suggestions"
+            className={`group relative flex items-center gap-3 rounded-md px-3 py-2 text-sm transition ${
+              pathname === "/integrations/suggestions" ? "bg-elevated text-foreground" : "text-muted-foreground hover:bg-elevated/60 hover:text-foreground"
+            }`}
+          >
+            {pathname === "/integrations/suggestions" && <span className="absolute left-0 top-1.5 h-5 w-[3px] rounded-r-full bg-primary" />}
+            <span className="relative">
+              <Layers className="h-4 w-4" />
+              {pendingSuggestionsCount > 0 && (
+                <span className="absolute -right-1.5 -top-1.5 h-3.5 min-w-3.5 rounded-full bg-accent-teal px-0.5 text-center text-[8px] font-bold leading-3.5 text-background">
+                  {pendingSuggestionsCount}
+                </span>
+              )}
+            </span>
+            Suggestions
+          </Link>
         </nav>
         <div className="border-t border-border p-3">
           <div className="flex items-center gap-3 rounded-md px-2 py-2">
@@ -143,6 +174,19 @@ export function AppShell({ title, children, fullBleed = false }: { title: string
                 className="w-64 rounded-md border border-border bg-surface py-1.5 pl-8 pr-3 text-sm outline-none focus:border-primary"
               />
             </div>
+
+            {/* Suggestions inbox icon */}
+            <Link
+              to="/integrations/suggestions"
+              className="relative grid h-9 w-9 place-items-center rounded-md border border-border bg-surface hover:bg-elevated"
+              title="Suggestions"
+            >
+              <Layers className="h-4 w-4" />
+              {pendingSuggestionsCount > 0 && (
+                <span className="absolute -right-1 -top-1 h-2.5 w-2.5 rounded-full bg-accent-teal ring-2 ring-background" />
+              )}
+            </Link>
+
 
             {/* Suggestions inbox icon */}
             <Link

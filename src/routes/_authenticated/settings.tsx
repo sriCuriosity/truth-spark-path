@@ -644,6 +644,45 @@ function Settings() {
             {saving ? "…" : "Save all settings"}
           </button>
         </div>
+        {/* Tab switcher */}
+        <div className="flex gap-1 rounded-lg border border-border bg-surface p-1">
+          {(["profile", "integrations"] as Tab[]).map((t) => (
+            <button
+              key={t}
+              onClick={() => setTab(t)}
+              className={`flex-1 rounded-md py-1.5 text-sm font-medium capitalize transition ${tab === t ? "bg-elevated text-foreground" : "text-muted-foreground hover:text-foreground"}`}
+            >
+              {t}
+            </button>
+          ))}
+        </div>
+
+        {tab === "profile" && (
+          <>
+            <section className="nexus-card p-6">
+              <h2 className="mb-4 font-display text-lg font-semibold">Profile</h2>
+              <div className="space-y-3">
+                <label className="block">
+                  <span className="text-xs uppercase tracking-wider text-muted-foreground">Display name</span>
+                  <input value={profile.display_name ?? ""} onChange={(e) => setProfile({ ...profile, display_name: e.target.value })}
+                    className="mt-1 w-full rounded-md border border-border bg-elevated px-3 py-2.5 text-sm outline-none focus:border-primary" />
+                </label>
+                <label className="block">
+                  <span className="text-xs uppercase tracking-wider text-muted-foreground">Handle</span>
+                  <input value={profile.handle ?? ""} onChange={(e) => setProfile({ ...profile, handle: e.target.value })}
+                    className="mt-1 w-full rounded-md border border-border bg-elevated px-3 py-2.5 text-sm outline-none focus:border-primary" />
+                </label>
+                <label className="block">
+                  <span className="text-xs uppercase tracking-wider text-muted-foreground">Bio</span>
+                  <textarea rows={3} value={profile.bio ?? ""} onChange={(e) => setProfile({ ...profile, bio: e.target.value })}
+                    className="mt-1 w-full resize-none rounded-md border border-border bg-elevated px-3 py-2.5 text-sm outline-none focus:border-primary" />
+                </label>
+                <button onClick={save} disabled={saving} className="rounded-md bg-primary px-5 py-2 text-sm font-medium text-primary-foreground hover:opacity-90 disabled:opacity-50">
+                  {saving ? "…" : "Save profile"}
+                </button>
+              </div>
+            </section>
+
             <section className="nexus-card p-6">
               <h2 className="mb-2 font-display text-lg font-semibold">Privacy</h2>
               <p className="text-sm text-muted-foreground">Your Cortex is yours. Export anytime.</p>
