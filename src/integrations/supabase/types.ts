@@ -457,6 +457,153 @@ export type Database = {
           },
         ]
       }
+      api_tokens: {
+        Row: {
+          id: string
+          user_id: string | null
+          token_hash: string
+          label: string | null
+          last_used: string | null
+          expires_at: string | null
+          created_at: string | null
+        }
+        Insert: {
+          id?: string
+          user_id?: string | null
+          token_hash: string
+          label?: string | null
+          last_used?: string | null
+          expires_at?: string | null
+          created_at?: string | null
+        }
+        Update: {
+          id?: string
+          user_id?: string | null
+          token_hash?: string
+          label?: string | null
+          last_used?: string | null
+          expires_at?: string | null
+          created_at?: string | null
+        }
+        Relationships: []
+      }
+      cortex_suggestions: {
+        Row: {
+          id: string
+          user_id: string | null
+          platform: string
+          suggestion_type: string
+          title: string
+          body: string | null
+          domains: string[] | null
+          evidence_data: Json | null
+          ai_summary: string | null
+          status: string | null
+          source_url: string | null
+          created_at: string | null
+          actioned_at: string | null
+        }
+        Insert: {
+          id?: string
+          user_id?: string | null
+          platform: string
+          suggestion_type: string
+          title: string
+          body?: string | null
+          domains?: string[] | null
+          evidence_data?: Json | null
+          ai_summary?: string | null
+          status?: string | null
+          source_url?: string | null
+          created_at?: string | null
+          actioned_at?: string | null
+        }
+        Update: {
+          id?: string
+          user_id?: string | null
+          platform?: string
+          suggestion_type?: string
+          title?: string
+          body?: string | null
+          domains?: string[] | null
+          evidence_data?: Json | null
+          ai_summary?: string | null
+          status?: string | null
+          source_url?: string | null
+          created_at?: string | null
+          actioned_at?: string | null
+        }
+        Relationships: []
+      }
+      external_activity_log: {
+        Row: {
+          id: string
+          user_id: string | null
+          platform: string | null
+          activity_type: string | null
+          raw_metadata: Json | null
+          processed: boolean | null
+          created_at: string | null
+        }
+        Insert: {
+          id?: string
+          user_id?: string | null
+          platform?: string | null
+          activity_type?: string | null
+          raw_metadata?: Json | null
+          processed?: boolean | null
+          created_at?: string | null
+        }
+        Update: {
+          id?: string
+          user_id?: string | null
+          platform?: string | null
+          activity_type?: string | null
+          raw_metadata?: Json | null
+          processed?: boolean | null
+          created_at?: string | null
+        }
+        Relationships: []
+      }
+      user_integrations: {
+        Row: {
+          id: string
+          user_id: string | null
+          platform: string
+          is_connected: boolean | null
+          scopes_granted: string[] | null
+          data_types_consented: string[] | null
+          auto_suggest: boolean | null
+          auto_add: boolean | null
+          last_synced: string | null
+          connected_at: string | null
+        }
+        Insert: {
+          id?: string
+          user_id?: string | null
+          platform: string
+          is_connected?: boolean | null
+          scopes_granted?: string[] | null
+          data_types_consented?: string[] | null
+          auto_suggest?: boolean | null
+          auto_add?: boolean | null
+          last_synced?: string | null
+          connected_at?: string | null
+        }
+        Update: {
+          id?: string
+          user_id?: string | null
+          platform?: string
+          is_connected?: boolean | null
+          scopes_granted?: string[] | null
+          data_types_consented?: string[] | null
+          auto_suggest?: boolean | null
+          auto_add?: boolean | null
+          last_synced?: string | null
+          connected_at?: string | null
+        }
+        Relationships: []
+      }
       user_achievements: {
         Row: {
           achievement_id: string | null
