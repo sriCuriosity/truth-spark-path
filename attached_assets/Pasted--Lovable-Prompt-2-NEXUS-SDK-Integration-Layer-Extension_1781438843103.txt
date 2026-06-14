@@ -1,0 +1,349 @@
+# Lovable Prompt 2 — NEXUS SDK Integration Layer + Extension Coordination
+
+Continue building the existing NEXUS application. Do not modify existing pages or components unless explicitly instructed. Add the following.
+
+---
+
+## NEW DATABASE TABLES
+
+Add to Supabase:
+
+```sql
+user_integrations (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid references users(id) on delete cascade,
+  platform text not null,
+  is_connected boolean default false,
+  scopes_granted text[],
+  data_types_consented text[],
+  auto_suggest boolean default true,
+  auto_add boolean default false,
+  last_synced timestamptz,
+  connected_at timestamptz default now(),
+  unique(user_id, platform)
+)
+
+cortex_suggestions (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid references users(id) on delete cascade,
+  platform text not null,
+  suggestion_type text not null,
+  title text not null,
+  body text,
+  domains text[],
+  evidence_data jsonb default '{}',
+  ai_summary text,
+  status text default 'pending' check (status in ('pending','accepted','discarded')),
+  source_url text,
+  created_at timestamptz default now(),
+  actioned_at timestamptz
+)
+
+external_activity_log (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid references users(id),
+  platform text,
+  activity_type text,
+  raw_metadata jsonb default '{}',
+  processed boolean default false,
+  created_at timestamptz default now()
+)
+
+api_tokens (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid references users(id) on delete cascade,
+  token_hash text unique not null,
+  label text,
+  last_used timestamptz,
+  expires_at timestamptz,
+  created_at timestamptz default now()
+)
+```
+
+Enable RLS on all new tables. Users access only their own rows.
+
+---
+
+## NEW SUPABASE EDGE FUNCTIONS
+
+Create these Edge Functions. Each validates the request using either the user's JWT or their API token from `api_tokens`.
+
+### `POST /functions/v1/sdk/activity`
+
+Accepts batched activity from the browser extension or desktop SDK.
+
+```typescript
+// Expected request body:
+{
+  activities: [
+    {
+      platform: 'github' | 'youtube' | 'linkedin' | 'medium' | 'browser',
+      activity_type: string,
+      metadata: Record<string, any>,
+      source_url: string,
+      occurred_at: string
+    }
+  ]
+}
+
+// Logic:
+// 1. Validate auth (JWT or Bearer token from api_tokens)
+// 2. Insert each activity into external_activity_log
+// 3. For each activity, run classification:
+//    - If platform === 'github' and activity_type === 'push': create cortex_suggestions row
+//    - If platform === 'youtube' and watch_percentage > 70: create cortex_suggestions row
+//    - If platform === 'linkedin' and activity_type === 'article_published': create cortex_suggestions row
+//    - Otherwise: log only, no suggestion
+// 4. Return { received: N, suggestions_created: M }
+```
+
+### `POST /functions/v1/sdk/token`
+
+Creates a personal API token for SDK authentication.
+
+```typescript
+// Auth: JWT required
+// Logic:
+// 1. Generate a secure random token (crypto.randomUUID() + timestamp)
+// 2. Hash it with SHA-256, store hash in api_tokens
+// 3. Return the raw token ONCE — never stored in plain text
+// Response: { token: 'nexus_...', label, expires_at }
+```
+
+### `POST /functions/v1/sdk/classify`
+
+Classifies a page/activity and returns suggested Cortex entry type and domains.
+
+```typescript
+// Auth: JWT or Bearer token
+// Body: { url: string, title: string, content_snippet: string, platform: string }
+// Logic: Call Anthropic API (claude-haiku) with prompt:
+//   "Classify this web page activity for a learning portfolio system.
+//    Return JSON: { is_educational: boolean, domains: string[], 
+//    suggested_entry_type: 'action'|'experiment'|'contribution'|'perspective_shift'|null,
+//    relevance_text: string (max 20 words) }"
+// Response: parsed JSON from AI
+```
+
+### `GET /functions/v1/sdk/suggestions/pending`
+
+Returns unactioned suggestions for the authenticated user.
+
+```typescript
+// Auth: JWT or Bearer token
+// Query params: limit (default 10), platform (optional filter)
+// Returns: cortex_suggestions rows where status = 'pending', ordered by created_at desc
+```
+
+### `POST /functions/v1/sdk/suggestions/:id/accept`
+
+Converts a suggestion into a real Cortex entry.
+
+```typescript
+// Auth: JWT
+// Body: { entry_type: string, title: string, body: string, domains: string[] }
+// Logic:
+// 1. Verify suggestion belongs to user
+// 2. Insert into cortex_entries using body fields (override suggestion defaults if provided)
+// 3. Update suggestion status to 'accepted', set actioned_at
+// 4. Return created cortex_entries row
+```
+
+### `POST /functions/v1/sdk/suggestions/:id/discard`
+
+```typescript
+// Auth: JWT
+// Logic: Update suggestion status to 'discarded', set actioned_at
+// Return: { success: true }
+```
+
+---
+
+## UPDATED `/settings` PAGE — INTEGRATIONS TAB
+
+Add a new "Integrations" tab to the existing settings page. Do not change other tabs.
+
+**Layout:** Full-width card list. One card per platform.
+
+**Platform cards — render one for each:**
+`github`, `youtube`, `linkedin`, `medium`, `browser_extension`
+
+Each card contains:
+- Platform icon (use simple SVG or lucide-react icon)
+- Platform name + description (one line):
+  - GitHub: "Code commits, repos, and pull requests added to your Cortex"
+  - YouTube: "Educational videos you watch deeply (>70% watched)"
+  - LinkedIn: "Articles and posts you publish"
+  - Medium: "Articles you read and write"
+  - Browser Extension: "Any page you choose to add from your browser"
+- Connection status badge: green "Connected" or muted "Not connected"
+- If connected: "Last synced: [relative time]" in `--text-secondary`
+- Toggle: `auto_suggest` (label: "Suggest Cortex entries automatically")
+- Connect/Disconnect button
+
+**Connect flow (for GitHub):**
+Button click → open modal with:
+- Title: "Connect GitHub"
+- Checkboxes for data types (all checked by default):
+  - "Code pushes and commits"
+  - "Pull request activity"
+  - "Issues you create or comment on"
+- Consent text: "NEXUS will suggest Cortex entries from this activity. You review each suggestion before it's added."
+- "Connect with GitHub" button → for MVP, simulate OAuth by setting `is_connected = true` in `user_integrations` with mock data. Add a note in the UI: "Full OAuth coming soon — tracking is active via the browser extension."
+
+**Connect flow (for Browser Extension):**
+Button click → open modal with:
+- Title: "Install the NEXUS Extension"
+- Step 1: "Download the extension file" → button downloads `nexus-extension.zip` (create a placeholder zip file in Supabase Storage)
+- Step 2: "Open chrome://extensions, enable Developer Mode, click Load Unpacked, select the extracted folder"
+- Step 3: "Pin the NEXUS icon to your toolbar and sign in with your account"
+- API Token section: "Your extension needs this token to connect to your account"
+  - Button: "Generate Token" → calls `/functions/v1/sdk/token`
+  - On success: show token in a monospace input with copy button + warning "This token is shown once. Save it now."
+  - List of existing tokens from `api_tokens`: label, created date, last used, revoke button
+
+---
+
+## NEW PAGE: `/integrations/suggestions`
+
+Add route and nav link (small badge with pending count) under the bell icon area in the top bar.
+
+**Layout:** Two-column on desktop. Single column on mobile.
+
+**Left (main):** Pending suggestions list
+
+Each suggestion card:
+- Platform badge (coloured chip: GitHub=dark, YouTube=red-muted, LinkedIn=blue-muted)
+- Title (bold)
+- AI summary text (1–2 lines, `--text-secondary`)
+- Source URL as truncated link
+- Domain tags (chips)
+- Suggested entry type chip
+- Two action buttons: "Add to Cortex" (primary) | "Discard" (ghost)
+
+"Add to Cortex" click → inline expand below the card (not a modal):
+- Pre-filled: title, body (from suggestion body), domains, entry_type
+- All fields editable
+- "Confirm & Add" button → calls `accept` Edge Function → removes card from list with slide-out animation → shows toast "Added to your Cortex"
+
+"Discard" → calls `discard` Edge Function → card slides out
+
+Empty state: "No suggestions yet. Connect a platform in Settings or install the browser extension to start capturing your learning everywhere."
+
+**Right (280px):** Summary panel
+- Connected platforms count
+- Suggestions this week count
+- Most active platform
+- "Manage integrations →" link to settings integrations tab
+
+---
+
+## NEW PAGE: `/extension` — Extension popup UI
+
+This page is designed to be loaded inside the browser extension popup (320×480px). Add route `/extension/popup`.
+
+Apply these overrides for this route only:
+```css
+body { width: 320px; min-height: 480px; overflow-x: hidden; }
+```
+
+**Layout (top to bottom):**
+
+Header (48px): NEXUS wordmark left, user avatar right, settings gear icon
+
+Current page detection banner (auto-populated by URL params):
+```
+?title=Building+a+rainwater+system&url=https://...&platform=youtube
+```
+Show: Platform icon + page title (truncated). AI classification result below: domain chips + "Educational content detected" or "Not flagged as learning content" in muted text.
+
+Primary action (large button, full width): "Add to Cortex"
+Click → inline form appears:
+- Entry type selector (4 chips: Action / Experiment / Shift / Contribution)
+- Title input (pre-filled from page title)
+- Body textarea (2 rows, placeholder: "What does this mean to you?")
+- "Submit" button → POST to `/functions/v1/sdk/suggestions` with `auto_add: true` → shows success state: checkmark animation + "Added to your Cortex"
+
+Secondary section: "Recent Cortex Activity" — last 3 entries from the user's Cortex as compact rows (title + type dot + time ago). "View all →" opens nexus.app/cortex in new tab.
+
+Footer: Connection status dot (green=connected, amber=token issue) + "Connected as @handle" or "Sign in →"
+
+**For the `/extension/popup` route specifically:** Export it as a standalone HTML build. Add a comment in the component: `// This component is also used as the browser extension popup. Build output goes to /extension-build`
+
+---
+
+## DASHBOARD UPDATE — Suggestions indicator
+
+In the existing dashboard top bar, update the notification bell:
+- If `cortex_suggestions` has pending rows for the user, show a second indicator: a small teal dot on a separate "inbox" icon (inbox or layers icon from lucide-react) next to the bell
+- Clicking it navigates to `/integrations/suggestions`
+
+In the existing right column of the dashboard, add below the Truth Spike card:
+
+**Recent External Activity card:**
+- Header: "From your platforms"
+- List: last 3 `cortex_suggestions` rows (all statuses) as compact rows: platform badge + title + status chip (pending=amber, accepted=green, discarded=muted)
+- "Review all →" link to `/integrations/suggestions`
+- If `user_integrations` has no connected platforms: show "Connect GitHub, YouTube, or install the extension to capture learning everywhere." with "Set up integrations →" link
+
+---
+
+## API TOKEN DISPLAY COMPONENT
+
+Build reusable `<ApiTokenDisplay token={string} />`:
+- Monospace input showing the token value
+- Copy icon button (copies to clipboard, icon changes to checkmark for 2s)
+- Warning text below: "This token grants access to your NEXUS account. Do not share it."
+- Only rendered once after generation — parent component stores token in local state only, not persisted to Supabase
+
+---
+
+## EXTENSION COORDINATOR SERVICE (client-side)
+
+Create `src/services/extensionCoordinator.ts`:
+
+```typescript
+// Handles communication between the NEXUS web app and the browser extension
+// Uses window.postMessage protocol (same origin) when popup is embedded
+// Uses BroadcastChannel for cross-tab coordination
+
+export const ExtensionCoordinator = {
+  // Send current auth token to extension popup when it loads
+  sendAuthToExtension(token: string) {
+    window.postMessage({ type: 'NEXUS_AUTH_TOKEN', token }, '*')
+  },
+
+  // Listen for activity submitted from extension popup
+  onActivitySubmitted(callback: (data: any) => void) {
+    window.addEventListener('message', (event) => {
+      if (event.data?.type === 'NEXUS_ACTIVITY_SUBMITTED') {
+        callback(event.data.payload)
+      }
+    })
+  },
+
+  // Notify extension when Cortex entry is created (so popup can update)
+  notifyCortexUpdated(entry: any) {
+    const channel = new BroadcastChannel('nexus_cortex')
+    channel.postMessage({ type: 'CORTEX_ENTRY_CREATED', entry })
+    channel.close()
+  }
+}
+```
+
+Import and initialise `ExtensionCoordinator` in the root layout component. Call `sendAuthToExtension` after successful login.
+
+---
+
+## BUILD ORDER
+
+1. New database tables
+2. Edge Functions (all 6)
+3. `/settings` integrations tab + API token generation
+4. `/integrations/suggestions` page
+5. `/extension/popup` page
+6. Dashboard updates (suggestions indicator + external activity card)
+7. `ExtensionCoordinator` service
+8. `<ApiTokenDisplay>` component
+
+Do not rebuild or re-scaffold existing pages. Only add new routes, new components, and the dashboard card additions specified above.

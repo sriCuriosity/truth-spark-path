@@ -10,8 +10,10 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as AuthRouteImport } from './routes/auth'
+import { Route as ExtensionRouteRouteImport } from './routes/extension/route'
 import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/route'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as ExtensionPopupRouteImport } from './routes/extension/popup'
 import { Route as AuthenticatedWellbeingRouteImport } from './routes/_authenticated/wellbeing'
 import { Route as AuthenticatedSettingsRouteImport } from './routes/_authenticated/settings'
 import { Route as AuthenticatedOnboardingRouteImport } from './routes/_authenticated/onboarding'
@@ -21,10 +23,17 @@ import { Route as AuthenticatedDashboardRouteImport } from './routes/_authentica
 import { Route as AuthenticatedCortexRouteImport } from './routes/_authenticated/cortex'
 import { Route as AuthenticatedCommunityRouteImport } from './routes/_authenticated/community'
 import { Route as AuthenticatedChamberRouteImport } from './routes/_authenticated/chamber'
+import { Route as AuthenticatedIntegrationsRouteRouteImport } from './routes/_authenticated/integrations/route'
+import { Route as AuthenticatedIntegrationsSuggestionsRouteImport } from './routes/_authenticated/integrations/suggestions'
 
 const AuthRoute = AuthRouteImport.update({
   id: '/auth',
   path: '/auth',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ExtensionRouteRoute = ExtensionRouteRouteImport.update({
+  id: '/extension',
+  path: '/extension',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AuthenticatedRouteRoute = AuthenticatedRouteRouteImport.update({
@@ -35,6 +44,11 @@ const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => rootRouteImport,
+} as any)
+const ExtensionPopupRoute = ExtensionPopupRouteImport.update({
+  id: '/popup',
+  path: '/popup',
+  getParentRoute: () => ExtensionRouteRoute,
 } as any)
 const AuthenticatedWellbeingRoute = AuthenticatedWellbeingRouteImport.update({
   id: '/wellbeing',
@@ -81,10 +95,24 @@ const AuthenticatedChamberRoute = AuthenticatedChamberRouteImport.update({
   path: '/chamber',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
+const AuthenticatedIntegrationsRouteRoute =
+  AuthenticatedIntegrationsRouteRouteImport.update({
+    id: '/integrations',
+    path: '/integrations',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
+const AuthenticatedIntegrationsSuggestionsRoute =
+  AuthenticatedIntegrationsSuggestionsRouteImport.update({
+    id: '/suggestions',
+    path: '/suggestions',
+    getParentRoute: () => AuthenticatedIntegrationsRouteRoute,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/extension': typeof ExtensionRouteRouteWithChildren
   '/auth': typeof AuthRoute
+  '/integrations': typeof AuthenticatedIntegrationsRouteRouteWithChildren
   '/chamber': typeof AuthenticatedChamberRoute
   '/community': typeof AuthenticatedCommunityRoute
   '/cortex': typeof AuthenticatedCortexRoute
@@ -94,10 +122,14 @@ export interface FileRoutesByFullPath {
   '/onboarding': typeof AuthenticatedOnboardingRoute
   '/settings': typeof AuthenticatedSettingsRoute
   '/wellbeing': typeof AuthenticatedWellbeingRoute
+  '/extension/popup': typeof ExtensionPopupRoute
+  '/integrations/suggestions': typeof AuthenticatedIntegrationsSuggestionsRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/extension': typeof ExtensionRouteRouteWithChildren
   '/auth': typeof AuthRoute
+  '/integrations': typeof AuthenticatedIntegrationsRouteRouteWithChildren
   '/chamber': typeof AuthenticatedChamberRoute
   '/community': typeof AuthenticatedCommunityRoute
   '/cortex': typeof AuthenticatedCortexRoute
@@ -107,12 +139,16 @@ export interface FileRoutesByTo {
   '/onboarding': typeof AuthenticatedOnboardingRoute
   '/settings': typeof AuthenticatedSettingsRoute
   '/wellbeing': typeof AuthenticatedWellbeingRoute
+  '/extension/popup': typeof ExtensionPopupRoute
+  '/integrations/suggestions': typeof AuthenticatedIntegrationsSuggestionsRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/_authenticated': typeof AuthenticatedRouteRouteWithChildren
+  '/extension': typeof ExtensionRouteRouteWithChildren
   '/auth': typeof AuthRoute
+  '/_authenticated/integrations': typeof AuthenticatedIntegrationsRouteRouteWithChildren
   '/_authenticated/chamber': typeof AuthenticatedChamberRoute
   '/_authenticated/community': typeof AuthenticatedCommunityRoute
   '/_authenticated/cortex': typeof AuthenticatedCortexRoute
@@ -122,12 +158,16 @@ export interface FileRoutesById {
   '/_authenticated/onboarding': typeof AuthenticatedOnboardingRoute
   '/_authenticated/settings': typeof AuthenticatedSettingsRoute
   '/_authenticated/wellbeing': typeof AuthenticatedWellbeingRoute
+  '/extension/popup': typeof ExtensionPopupRoute
+  '/_authenticated/integrations/suggestions': typeof AuthenticatedIntegrationsSuggestionsRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
+    | '/extension'
     | '/auth'
+    | '/integrations'
     | '/chamber'
     | '/community'
     | '/cortex'
@@ -137,10 +177,14 @@ export interface FileRouteTypes {
     | '/onboarding'
     | '/settings'
     | '/wellbeing'
+    | '/extension/popup'
+    | '/integrations/suggestions'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
+    | '/extension'
     | '/auth'
+    | '/integrations'
     | '/chamber'
     | '/community'
     | '/cortex'
@@ -150,11 +194,15 @@ export interface FileRouteTypes {
     | '/onboarding'
     | '/settings'
     | '/wellbeing'
+    | '/extension/popup'
+    | '/integrations/suggestions'
   id:
     | '__root__'
     | '/'
     | '/_authenticated'
+    | '/extension'
     | '/auth'
+    | '/_authenticated/integrations'
     | '/_authenticated/chamber'
     | '/_authenticated/community'
     | '/_authenticated/cortex'
@@ -164,11 +212,14 @@ export interface FileRouteTypes {
     | '/_authenticated/onboarding'
     | '/_authenticated/settings'
     | '/_authenticated/wellbeing'
+    | '/extension/popup'
+    | '/_authenticated/integrations/suggestions'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AuthenticatedRouteRoute: typeof AuthenticatedRouteRouteWithChildren
+  ExtensionRouteRoute: typeof ExtensionRouteRouteWithChildren
   AuthRoute: typeof AuthRoute
 }
 
@@ -179,6 +230,13 @@ declare module '@tanstack/react-router' {
       path: '/auth'
       fullPath: '/auth'
       preLoaderRoute: typeof AuthRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/extension': {
+      id: '/extension'
+      path: '/extension'
+      fullPath: '/extension'
+      preLoaderRoute: typeof ExtensionRouteRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/_authenticated': {
@@ -194,6 +252,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/'
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
+    }
+    '/extension/popup': {
+      id: '/extension/popup'
+      path: '/popup'
+      fullPath: '/extension/popup'
+      preLoaderRoute: typeof ExtensionPopupRouteImport
+      parentRoute: typeof ExtensionRouteRoute
     }
     '/_authenticated/wellbeing': {
       id: '/_authenticated/wellbeing'
@@ -258,10 +323,40 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedChamberRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/integrations': {
+      id: '/_authenticated/integrations'
+      path: '/integrations'
+      fullPath: '/integrations'
+      preLoaderRoute: typeof AuthenticatedIntegrationsRouteRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/integrations/suggestions': {
+      id: '/_authenticated/integrations/suggestions'
+      path: '/suggestions'
+      fullPath: '/integrations/suggestions'
+      preLoaderRoute: typeof AuthenticatedIntegrationsSuggestionsRouteImport
+      parentRoute: typeof AuthenticatedIntegrationsRouteRoute
+    }
   }
 }
 
+interface AuthenticatedIntegrationsRouteRouteChildren {
+  AuthenticatedIntegrationsSuggestionsRoute: typeof AuthenticatedIntegrationsSuggestionsRoute
+}
+
+const AuthenticatedIntegrationsRouteRouteChildren: AuthenticatedIntegrationsRouteRouteChildren =
+  {
+    AuthenticatedIntegrationsSuggestionsRoute:
+      AuthenticatedIntegrationsSuggestionsRoute,
+  }
+
+const AuthenticatedIntegrationsRouteRouteWithChildren =
+  AuthenticatedIntegrationsRouteRoute._addFileChildren(
+    AuthenticatedIntegrationsRouteRouteChildren,
+  )
+
 interface AuthenticatedRouteRouteChildren {
+  AuthenticatedIntegrationsRouteRoute: typeof AuthenticatedIntegrationsRouteRouteWithChildren
   AuthenticatedChamberRoute: typeof AuthenticatedChamberRoute
   AuthenticatedCommunityRoute: typeof AuthenticatedCommunityRoute
   AuthenticatedCortexRoute: typeof AuthenticatedCortexRoute
@@ -274,6 +369,8 @@ interface AuthenticatedRouteRouteChildren {
 }
 
 const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
+  AuthenticatedIntegrationsRouteRoute:
+    AuthenticatedIntegrationsRouteRouteWithChildren,
   AuthenticatedChamberRoute: AuthenticatedChamberRoute,
   AuthenticatedCommunityRoute: AuthenticatedCommunityRoute,
   AuthenticatedCortexRoute: AuthenticatedCortexRoute,
@@ -288,11 +385,34 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
 const AuthenticatedRouteRouteWithChildren =
   AuthenticatedRouteRoute._addFileChildren(AuthenticatedRouteRouteChildren)
 
+interface ExtensionRouteRouteChildren {
+  ExtensionPopupRoute: typeof ExtensionPopupRoute
+}
+
+const ExtensionRouteRouteChildren: ExtensionRouteRouteChildren = {
+  ExtensionPopupRoute: ExtensionPopupRoute,
+}
+
+const ExtensionRouteRouteWithChildren = ExtensionRouteRoute._addFileChildren(
+  ExtensionRouteRouteChildren,
+)
+
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AuthenticatedRouteRoute: AuthenticatedRouteRouteWithChildren,
+  ExtensionRouteRoute: ExtensionRouteRouteWithChildren,
   AuthRoute: AuthRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
+
+import type { getRouter } from './router.tsx'
+import type { startInstance } from './start.ts'
+declare module '@tanstack/react-start' {
+  interface Register {
+    ssr: true
+    router: Awaited<ReturnType<typeof getRouter>>
+    config: Awaited<ReturnType<typeof startInstance.getOptions>>
+  }
+}

@@ -1,7 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { motion } from "framer-motion";
-import { Plus, Sparkle } from "lucide-react";
+import { Plus, Sparkle, Layers } from "lucide-react";
 import { useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { AppShell } from "@/components/app-shell";
@@ -14,6 +14,21 @@ export const Route = createFileRoute("/_authenticated/dashboard")({
 });
 
 const TIERS = ["seeker", "builder", "contributor", "architect"];
+
+const PLATFORM_LABELS: Record<string, string> = {
+  github: "GitHub",
+  youtube: "YouTube",
+  linkedin: "LinkedIn",
+  medium: "Medium",
+  browser_extension: "Browser",
+  browser: "Browser",
+};
+
+const STATUS_CLASSES: Record<string, string> = {
+  pending: "bg-accent-amber/15 text-accent-amber",
+  accepted: "bg-green-500/15 text-green-400",
+  discarded: "bg-muted/20 text-muted-foreground",
+};
 
 function Dashboard() {
   const [addOpen, setAddOpen] = useState(false);
@@ -55,6 +70,26 @@ function Dashboard() {
       if (!u.user) return null;
       const { data } = await supabase.from("wellbeing_checkins").select("*").eq("user_id", u.user.id).order("created_at", { ascending: false }).limit(1).maybeSingle();
       return data;
+    },
+  });
+
+  const { data: recentSuggestions = [] } = useQuery({
+    queryKey: ["recent-suggestions-dash"],
+    queryFn: async () => {
+      const { data: u } = await supabase.auth.getUser();
+      if (!u.user) return [];
+      const { data } = await supabase.from("cortex_suggestions").select("*").eq("user_id", u.user.id).order("created_at", { ascending: false }).limit(3);
+      return data ?? [];
+    },
+  });
+
+  const { data: connectedIntegrations = [] } = useQuery({
+    queryKey: ["connected-integrations-count"],
+    queryFn: async () => {
+      const { data: u } = await supabase.auth.getUser();
+      if (!u.user) return [];
+      const { data } = await supabase.from("user_integrations").select("*").eq("user_id", u.user.id).eq("is_connected", true);
+      return data ?? [];
     },
   });
 
@@ -169,6 +204,39 @@ function Dashboard() {
               <p className="mt-2 text-sm text-muted-foreground">Truth spikes appear when your learning connects to the real world.</p>
             </div>
           )}
+
+          {/* External activity card */}
+          <div className="nexus-card p-5">
+            <div className="flex items-center justify-between mb-3">
+              <p className="text-[10px] uppercase tracking-wider text-muted-foreground">From your platforms</p>
+              <Layers className="h-3.5 w-3.5 text-muted-foreground" />
+            </div>
+            {connectedIntegrations.length === 0 ? (
+              <div>
+                <p className="text-xs text-muted-foreground">Connect GitHub, YouTube, or install the extension to capture learning everywhere.</p>
+                <Link to="/settings" className="mt-2 inline-block text-xs text-primary hover:underline">Set up integrations →</Link>
+              </div>
+            ) : recentSuggestions.length === 0 ? (
+              <p className="text-xs text-muted-foreground">No platform activity yet. Keep browsing.</p>
+            ) : (
+              <>
+                <div className="space-y-2">
+                  {recentSuggestions.map((s: any) => (
+                    <div key={s.id} className="flex items-center gap-2">
+                      <span className="rounded-full bg-elevated px-1.5 py-0.5 text-[9px] font-medium text-muted-foreground uppercase">
+                        {PLATFORM_LABELS[s.platform] ?? s.platform}
+                      </span>
+                      <p className="flex-1 truncate text-[11px]">{s.title}</p>
+                      <span className={`rounded-full px-1.5 py-0.5 text-[9px] font-medium capitalize ${STATUS_CLASSES[s.status] ?? ""}`}>
+                        {s.status}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+                <Link to="/integrations/suggestions" className="mt-2 block text-xs text-primary hover:underline">Review all →</Link>
+              </>
+            )}
+          </div>
 
           <div className="nexus-card p-5">
             <p className="mb-3 text-[10px] uppercase tracking-wider text-muted-foreground">Learning circle</p>
