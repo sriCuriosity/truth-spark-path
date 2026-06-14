@@ -181,7 +181,7 @@ function Dashboard() {
             {lastCheck ? (
               <>
                 <p className="mt-2 text-sm">Feeling <span className="text-accent-teal">{lastCheck.emotion}</span> · energy {lastCheck.energy_level}/10</p>
-                <p className="mt-1 text-[11px] text-muted-foreground">Last check-in {new Date(lastCheck.created_at).toLocaleString()}</p>
+                <p className="mt-1 text-[11px] text-muted-foreground">Last check-in {new Date(lastCheck.created_at ?? Date.now()).toLocaleString()}</p>
               </>
             ) : (
               <p className="mt-2 text-sm text-muted-foreground">No recent check-in. How are you, actually?</p>
