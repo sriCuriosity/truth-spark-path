@@ -12,9 +12,14 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as AuthRouteImport } from './routes/auth'
 import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/route'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as AuthenticatedWellbeingRouteImport } from './routes/_authenticated/wellbeing'
+import { Route as AuthenticatedSettingsRouteImport } from './routes/_authenticated/settings'
 import { Route as AuthenticatedOnboardingRouteImport } from './routes/_authenticated/onboarding'
+import { Route as AuthenticatedMentorRouteImport } from './routes/_authenticated/mentor'
+import { Route as AuthenticatedDomainsRouteImport } from './routes/_authenticated/domains'
 import { Route as AuthenticatedDashboardRouteImport } from './routes/_authenticated/dashboard'
 import { Route as AuthenticatedCortexRouteImport } from './routes/_authenticated/cortex'
+import { Route as AuthenticatedCommunityRouteImport } from './routes/_authenticated/community'
 import { Route as AuthenticatedChamberRouteImport } from './routes/_authenticated/chamber'
 
 const AuthRoute = AuthRouteImport.update({
@@ -31,9 +36,29 @@ const IndexRoute = IndexRouteImport.update({
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AuthenticatedWellbeingRoute = AuthenticatedWellbeingRouteImport.update({
+  id: '/wellbeing',
+  path: '/wellbeing',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
+const AuthenticatedSettingsRoute = AuthenticatedSettingsRouteImport.update({
+  id: '/settings',
+  path: '/settings',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
 const AuthenticatedOnboardingRoute = AuthenticatedOnboardingRouteImport.update({
   id: '/onboarding',
   path: '/onboarding',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
+const AuthenticatedMentorRoute = AuthenticatedMentorRouteImport.update({
+  id: '/mentor',
+  path: '/mentor',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
+const AuthenticatedDomainsRoute = AuthenticatedDomainsRouteImport.update({
+  id: '/domains',
+  path: '/domains',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
 const AuthenticatedDashboardRoute = AuthenticatedDashboardRouteImport.update({
@@ -46,6 +71,11 @@ const AuthenticatedCortexRoute = AuthenticatedCortexRouteImport.update({
   path: '/cortex',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
+const AuthenticatedCommunityRoute = AuthenticatedCommunityRouteImport.update({
+  id: '/community',
+  path: '/community',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
 const AuthenticatedChamberRoute = AuthenticatedChamberRouteImport.update({
   id: '/chamber',
   path: '/chamber',
@@ -56,17 +86,27 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
   '/chamber': typeof AuthenticatedChamberRoute
+  '/community': typeof AuthenticatedCommunityRoute
   '/cortex': typeof AuthenticatedCortexRoute
   '/dashboard': typeof AuthenticatedDashboardRoute
+  '/domains': typeof AuthenticatedDomainsRoute
+  '/mentor': typeof AuthenticatedMentorRoute
   '/onboarding': typeof AuthenticatedOnboardingRoute
+  '/settings': typeof AuthenticatedSettingsRoute
+  '/wellbeing': typeof AuthenticatedWellbeingRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
   '/chamber': typeof AuthenticatedChamberRoute
+  '/community': typeof AuthenticatedCommunityRoute
   '/cortex': typeof AuthenticatedCortexRoute
   '/dashboard': typeof AuthenticatedDashboardRoute
+  '/domains': typeof AuthenticatedDomainsRoute
+  '/mentor': typeof AuthenticatedMentorRoute
   '/onboarding': typeof AuthenticatedOnboardingRoute
+  '/settings': typeof AuthenticatedSettingsRoute
+  '/wellbeing': typeof AuthenticatedWellbeingRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -74,9 +114,14 @@ export interface FileRoutesById {
   '/_authenticated': typeof AuthenticatedRouteRouteWithChildren
   '/auth': typeof AuthRoute
   '/_authenticated/chamber': typeof AuthenticatedChamberRoute
+  '/_authenticated/community': typeof AuthenticatedCommunityRoute
   '/_authenticated/cortex': typeof AuthenticatedCortexRoute
   '/_authenticated/dashboard': typeof AuthenticatedDashboardRoute
+  '/_authenticated/domains': typeof AuthenticatedDomainsRoute
+  '/_authenticated/mentor': typeof AuthenticatedMentorRoute
   '/_authenticated/onboarding': typeof AuthenticatedOnboardingRoute
+  '/_authenticated/settings': typeof AuthenticatedSettingsRoute
+  '/_authenticated/wellbeing': typeof AuthenticatedWellbeingRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -84,20 +129,41 @@ export interface FileRouteTypes {
     | '/'
     | '/auth'
     | '/chamber'
+    | '/community'
     | '/cortex'
     | '/dashboard'
+    | '/domains'
+    | '/mentor'
     | '/onboarding'
+    | '/settings'
+    | '/wellbeing'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/auth' | '/chamber' | '/cortex' | '/dashboard' | '/onboarding'
+  to:
+    | '/'
+    | '/auth'
+    | '/chamber'
+    | '/community'
+    | '/cortex'
+    | '/dashboard'
+    | '/domains'
+    | '/mentor'
+    | '/onboarding'
+    | '/settings'
+    | '/wellbeing'
   id:
     | '__root__'
     | '/'
     | '/_authenticated'
     | '/auth'
     | '/_authenticated/chamber'
+    | '/_authenticated/community'
     | '/_authenticated/cortex'
     | '/_authenticated/dashboard'
+    | '/_authenticated/domains'
+    | '/_authenticated/mentor'
     | '/_authenticated/onboarding'
+    | '/_authenticated/settings'
+    | '/_authenticated/wellbeing'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -129,11 +195,39 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/_authenticated/wellbeing': {
+      id: '/_authenticated/wellbeing'
+      path: '/wellbeing'
+      fullPath: '/wellbeing'
+      preLoaderRoute: typeof AuthenticatedWellbeingRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/settings': {
+      id: '/_authenticated/settings'
+      path: '/settings'
+      fullPath: '/settings'
+      preLoaderRoute: typeof AuthenticatedSettingsRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/onboarding': {
       id: '/_authenticated/onboarding'
       path: '/onboarding'
       fullPath: '/onboarding'
       preLoaderRoute: typeof AuthenticatedOnboardingRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/mentor': {
+      id: '/_authenticated/mentor'
+      path: '/mentor'
+      fullPath: '/mentor'
+      preLoaderRoute: typeof AuthenticatedMentorRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/domains': {
+      id: '/_authenticated/domains'
+      path: '/domains'
+      fullPath: '/domains'
+      preLoaderRoute: typeof AuthenticatedDomainsRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
     '/_authenticated/dashboard': {
@@ -150,6 +244,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedCortexRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/community': {
+      id: '/_authenticated/community'
+      path: '/community'
+      fullPath: '/community'
+      preLoaderRoute: typeof AuthenticatedCommunityRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/chamber': {
       id: '/_authenticated/chamber'
       path: '/chamber'
@@ -162,16 +263,26 @@ declare module '@tanstack/react-router' {
 
 interface AuthenticatedRouteRouteChildren {
   AuthenticatedChamberRoute: typeof AuthenticatedChamberRoute
+  AuthenticatedCommunityRoute: typeof AuthenticatedCommunityRoute
   AuthenticatedCortexRoute: typeof AuthenticatedCortexRoute
   AuthenticatedDashboardRoute: typeof AuthenticatedDashboardRoute
+  AuthenticatedDomainsRoute: typeof AuthenticatedDomainsRoute
+  AuthenticatedMentorRoute: typeof AuthenticatedMentorRoute
   AuthenticatedOnboardingRoute: typeof AuthenticatedOnboardingRoute
+  AuthenticatedSettingsRoute: typeof AuthenticatedSettingsRoute
+  AuthenticatedWellbeingRoute: typeof AuthenticatedWellbeingRoute
 }
 
 const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedChamberRoute: AuthenticatedChamberRoute,
+  AuthenticatedCommunityRoute: AuthenticatedCommunityRoute,
   AuthenticatedCortexRoute: AuthenticatedCortexRoute,
   AuthenticatedDashboardRoute: AuthenticatedDashboardRoute,
+  AuthenticatedDomainsRoute: AuthenticatedDomainsRoute,
+  AuthenticatedMentorRoute: AuthenticatedMentorRoute,
   AuthenticatedOnboardingRoute: AuthenticatedOnboardingRoute,
+  AuthenticatedSettingsRoute: AuthenticatedSettingsRoute,
+  AuthenticatedWellbeingRoute: AuthenticatedWellbeingRoute,
 }
 
 const AuthenticatedRouteRouteWithChildren =
