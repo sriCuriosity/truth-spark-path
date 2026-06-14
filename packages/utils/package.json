@@ -1,0 +1,25 @@
+{
+  "name": "@nexus/utils",
+  "version": "0.1.0",
+  "private": false,
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch",
+    "lint": "eslint .",
+    "format": "prettier --write ."
+  },
+  "dependencies": {
+    "@nexus/types": "workspace:*",
+    "clsx": "^2.1.1",
+    "tailwind-merge": "^3.5.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.16.5",
+    "eslint": "^9.32.0",
+    "prettier": "^3.7.3",
+    "typescript": "^5.8.3"
+  }
+}
