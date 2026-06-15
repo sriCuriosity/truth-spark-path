@@ -54,19 +54,67 @@ serve(async (req) => {
         action_description: 'AI assessment triggered for submission',
       });
 
-      // For now, return a mock assessment
-      // In production, this would call Claude API
-      const mockAssessment = {
-        dimension_scores: {
-          depth: 0.8,
-          creativity: 0.7,
-          emotional_intelligence: 0.75,
-          real_world_application: 0.65,
-          self_authorship: 0.85,
-        },
-        narrative_feedback: 'This submission demonstrates strong understanding and personal reflection. The depth of analysis is commendable, and there are clear connections to real-world applications.',
-        evidence_gaps: ['Consider adding more specific examples', 'Could benefit from peer validation'],
-        confidence: 0.85,
+      // Socratic prompt for quest assessment
+      const prompt = `Perform a Socratic assessment for this quest submission.
+Submission Content: ${submission_content}
+Evaluation Rubric: ${rubric || 'depth, creativity, emotional intelligence, real-world application, self-authorship'}
+
+Return JSON only (no markdown): 
+{
+  "depth": 0.8,
+  "creativity": 0.7,
+  "emotional_intelligence": 0.75,
+  "real_world_application": 0.65,
+  "self_authorship": 0.85,
+  "narrative_feedback": "narrative feedback text",
+  "evidence_gaps": ["gap 1", "gap 2"],
+  "confidence": 0.85
+}`;
+
+      let assessmentResult;
+      try {
+        const response = await fetch(`${Deno.env.get('SUPABASE_URL')}/functions/v1/llm-proxy`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "Authorization": req.headers.get('Authorization') ?? '',
+          },
+          body: JSON.stringify({
+            model: "nvidia/nemotron-3-nano-omni-30b-a3b-reasoning",
+            messages: [{ role: "user", content: prompt }],
+            temperature: 0.3,
+            max_tokens: 800,
+          }),
+        });
+
+        if (!response.ok) {
+          throw new Error(`Proxy error: ${response.status}`);
+        }
+
+        const aiData = await response.json();
+        const text = aiData.choices?.[0]?.message?.content ?? "{}";
+        const jsonMatch = text.match(/\{[\s\S]*\}/);
+        assessmentResult = JSON.parse(jsonMatch ? jsonMatch[0] : text);
+      } catch (err) {
+        console.error("AI assessment failed, using fallback:", err);
+        assessmentResult = {
+          depth: 0.5,
+          creativity: 0.5,
+          emotional_intelligence: 0.5,
+          real_world_application: 0.5,
+          self_authorship: 0.5,
+          narrative_feedback: "Socratic feedback is temporarily unavailable due to connectivity issues.",
+          evidence_gaps: [],
+          confidence: 0.5,
+        };
+      }
+
+      const scores = {
+        depth: assessmentResult.depth ?? 0.5,
+        creativity: assessmentResult.creativity ?? 0.5,
+        emotional_intelligence: assessmentResult.emotional_intelligence ?? 0.5,
+        real_world_application: assessmentResult.real_world_application ?? 0.5,
+        self_authorship: assessmentResult.self_authorship ?? 0.5,
       };
 
       // Store assessment
@@ -74,12 +122,12 @@ serve(async (req) => {
         .from('ai_assessments')
         .insert({
           submission_id,
-          model_version: 'claude-sonnet-4-6',
+          model_version: 'nvidia/nemotron-3-nano-omni-30b-a3b-reasoning',
           prompt_hash: promptHashHex,
-          dimension_scores: mockAssessment.dimension_scores,
-          narrative_feedback: mockAssessment.narrative_feedback,
-          evidence_gaps: mockAssessment.evidence_gaps,
-          confidence: mockAssessment.confidence,
+          dimension_scores: scores,
+          narrative_feedback: assessmentResult.narrative_feedback || "No feedback provided.",
+          evidence_gaps: assessmentResult.evidence_gaps || [],
+          confidence: assessmentResult.confidence ?? 0.5,
           contested: false,
         })
         .select()

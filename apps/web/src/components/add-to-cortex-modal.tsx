@@ -24,10 +24,45 @@ export function AddToCortexModal({ open, onClose, onCreated }: { open: boolean; 
   const [saving, setSaving] = useState(false);
   const [spike, setSpike] = useState<AchievementSpikeData | null>(null);
 
+  const [analyzing, setAnalyzing] = useState(false);
+  const [aiRelevance, setAiRelevance] = useState("");
+
   function reset() {
     setType(null); setTitle(""); setBody(""); setDomains("");
     setPreviousBelief(""); setNewBelief(""); setWhatLearned("");
-    setIsPublic(true); setHappenedAt("");
+    setIsPublic(true); setHappenedAt(""); setAiRelevance("");
+  }
+
+  async function handleAIClassify() {
+    if (!title.trim() || !body.trim()) {
+      toast.error("Please enter a title and description first.");
+      return;
+    }
+    setAnalyzing(true);
+    try {
+      const { data: res, error } = await supabase.functions.invoke("sdk/classify", {
+        body: {
+          title,
+          content_snippet: body,
+          url: "https://nexus.app/local",
+          platform: "browser_extension"
+        }
+      });
+      if (error) throw error;
+      
+      if (res.domains && res.domains.length > 0) {
+        setDomains(res.domains.join(", "));
+        toast.success("AI domain suggestions populated.");
+      }
+      if (res.relevance_text) {
+        setAiRelevance(res.relevance_text);
+      }
+    } catch (err: any) {
+      console.error(err);
+      toast.error("AI classification failed. Please enter domains manually.");
+    } finally {
+      setAnalyzing(false);
+    }
   }
 
   async function submit(e: React.FormEvent) {
@@ -37,20 +72,26 @@ export function AddToCortexModal({ open, onClose, onCreated }: { open: boolean; 
     try {
       const { data: u } = await supabase.auth.getUser();
       if (!u.user) throw new Error("No session");
-      const { data, error } = await supabase.from("cortex_entries").insert({
-        user_id: u.user.id,
-        entry_type: type,
-        title, body,
-        domains: domains.split(",").map(s => s.trim()).filter(Boolean),
-        is_public: isPublic,
-        happened_at: happenedAt || null,
-        previous_belief: type === "perspective_shift" ? previousBelief : null,
-        new_belief: type === "perspective_shift" ? newBelief : null,
-        what_i_learned: type === "experiment" ? whatLearned : null,
-      }).select().single();
+      
+      // Invoke cortex-entry edge function to save entry and generate embeddings
+      const { data: edgeRes, error } = await supabase.functions.invoke("cortex-entry", {
+        body: {
+          entry_type: type,
+          title, 
+          body,
+          domains: domains.split(",").map(s => s.trim()).filter(Boolean),
+          is_public: isPublic,
+          happened_at: happenedAt || null,
+          previous_belief: type === "perspective_shift" ? previousBelief : null,
+          new_belief: type === "perspective_shift" ? newBelief : null,
+          what_i_learned: type === "experiment" ? whatLearned : null,
+        }
+      });
       if (error) throw error;
+
+      const entryData = edgeRes.data || edgeRes;
       trackSessionActivity("cortex_entry");
-      const tierResult = await awardXp(u.user.id, "cortex_entry_created", data.id);
+      const tierResult = await awardXp(u.user.id, "cortex_entry_created", entryData.id);
       toast.success("Added to your Cortex.");
       if (tierResult.tierChanged) {
         toast.message(`You've reached ${tierResult.currentTier} tier`, {
@@ -61,7 +102,7 @@ export function AddToCortexModal({ open, onClose, onCreated }: { open: boolean; 
       reset();
       onCreated?.();
       onClose();
-      const awarded = await checkAchievements(u.user.id, data.title);
+      const awarded = await checkAchievements(u.user.id, entryData.title);
       if (awarded.length > 0) {
         const first = awarded[0];
         setSpike({
@@ -120,6 +161,16 @@ export function AddToCortexModal({ open, onClose, onCreated }: { open: boolean; 
                     className="w-full rounded-md border border-border bg-elevated px-3 py-2.5 text-sm outline-none focus:border-primary" />
                   <textarea required rows={3} placeholder="Describe what happened, in your own words." value={body} onChange={(e) => setBody(e.target.value)}
                     className="w-full resize-none rounded-md border border-border bg-elevated px-3 py-2.5 text-sm outline-none focus:border-primary" />
+                  
+                  <button
+                    type="button"
+                    onClick={handleAIClassify}
+                    disabled={analyzing}
+                    className="w-full py-2 bg-elevated border border-primary/40 text-primary text-xs font-semibold rounded hover:bg-elevated/70 transition flex items-center justify-center gap-1.5 disabled:opacity-50"
+                  >
+                    {analyzing ? "Analyzing Socratic Context..." : "⚡ Analyze with Socratic AI"}
+                  </button>
+
                   {type === "perspective_shift" && (
                     <div className="grid gap-3 sm:grid-cols-2">
                       <input placeholder="I used to think…" value={previousBelief} onChange={(e) => setPreviousBelief(e.target.value)}
@@ -132,8 +183,16 @@ export function AddToCortexModal({ open, onClose, onCreated }: { open: boolean; 
                     <textarea rows={2} placeholder="What did this teach you, even if it failed?" value={whatLearned} onChange={(e) => setWhatLearned(e.target.value)}
                       className="w-full resize-none rounded-md border border-border bg-elevated px-3 py-2.5 text-sm outline-none focus:border-primary" />
                   )}
-                  <input placeholder="Domains (comma separated)" value={domains} onChange={(e) => setDomains(e.target.value)}
-                    className="w-full rounded-md border border-border bg-elevated px-3 py-2.5 text-sm outline-none focus:border-primary" />
+                  
+                  <div className="space-y-1">
+                    <input placeholder="Domains (comma separated)" value={domains} onChange={(e) => setDomains(e.target.value)}
+                      className="w-full rounded-md border border-border bg-elevated px-3 py-2.5 text-sm outline-none focus:border-primary" />
+                    {aiRelevance && (
+                      <div className="text-[11px] p-3 bg-accent-teal/10 border border-accent-teal/30 rounded text-accent-teal mt-1 leading-relaxed">
+                        <strong>AI Socratic Evaluation Suggestion:</strong> {aiRelevance}
+                      </div>
+                    )}
+                  </div>
                   <div className="grid gap-3 sm:grid-cols-2">
                     <label className="flex items-center gap-2 rounded-md border border-border bg-elevated px-3 py-2.5 text-sm">
                       <input type="checkbox" checked={isPublic} onChange={(e) => setIsPublic(e.target.checked)} className="accent-[color:var(--primary)]" />

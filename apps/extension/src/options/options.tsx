@@ -14,7 +14,7 @@ document.addEventListener('DOMContentLoaded', () => {
             Checking...
           </div>
         </div>
-
+ 
         <div style="margin-bottom: 24px;">
           <h2 style="font-size: 16px; font-weight: 500; margin-bottom: 12px;">API Token</h2>
           <div style="display: flex; gap: 8px; margin-bottom: 8px;">
@@ -42,12 +42,14 @@ document.addEventListener('DOMContentLoaded', () => {
     `;
 
     // Load saved settings
-    chrome.storage.sync.get(['apiToken', 'autoCapture'], (result) => {
+    (chrome as any).storage.sync.get(['apiToken', 'autoCapture'], (result: any) => {
       if (result.apiToken) {
-        document.getElementById('apiToken').value = result.apiToken;
+        const tokenInput = document.getElementById('apiToken') as HTMLInputElement;
+        if (tokenInput) tokenInput.value = result.apiToken;
       }
       if (result.autoCapture) {
-        document.getElementById('autoCapture').checked = result.autoCapture;
+        const autoCaptureInput = document.getElementById('autoCapture') as HTMLInputElement;
+        if (autoCaptureInput) autoCaptureInput.checked = result.autoCapture;
       }
       checkConnection();
     });
@@ -55,7 +57,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // Save token
     document.getElementById('saveToken')?.addEventListener('click', () => {
       const token = (document.getElementById('apiToken') as HTMLInputElement).value;
-      chrome.storage.sync.set({ apiToken: token }, () => {
+      (chrome as any).storage.sync.set({ apiToken: token }, () => {
         checkConnection();
       });
     });
@@ -63,7 +65,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // Save auto-capture setting
     document.getElementById('autoCapture')?.addEventListener('change', (e) => {
       const autoCapture = (e.target as HTMLInputElement).checked;
-      chrome.storage.sync.set({ autoCapture });
+      (chrome as any).storage.sync.set({ autoCapture });
     });
   }
 
@@ -71,10 +73,12 @@ document.addEventListener('DOMContentLoaded', () => {
     const token = (document.getElementById('apiToken') as HTMLInputElement).value;
     const statusEl = document.getElementById('connectionStatus');
     
-    if (token) {
-      statusEl.innerHTML = '<span style="color: green;">✓ Connected to NEXUS</span>';
-    } else {
-      statusEl.innerHTML = '<span style="color: orange;">⚠ Not connected - enter API token</span>';
+    if (statusEl) {
+      if (token) {
+        statusEl.innerHTML = '<span style="color: green;">✓ Connected to NEXUS</span>';
+      } else {
+        statusEl.innerHTML = '<span style="color: orange;">⚠ Not connected - enter API token</span>';
+      }
     }
   }
 });

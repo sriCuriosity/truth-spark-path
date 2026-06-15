@@ -1,3 +1,5 @@
+import { supabase } from "@/integrations/supabase/client";
+
 export const AI_CAN_DO = [
   "Ask Socratic questions that promote reflection",
   "Detect when a student seems disengaged and gently inquire",
@@ -51,5 +53,46 @@ export function warmHandoffResponse(trigger: EscalationTrigger, name?: string): 
       return `${greeting}I'm glad you're reaching out. I'm not a therapist — but I can show you vetted crisis lines and peer support resources. Would you like me to list what's available in your region?`;
     case "sustained_distress":
       return `${greeting}I've noticed your recent entries have been heavier than usual. I'm an AI — I can ask questions, but I can't sit with you through hard things. Would you like to: (A) see crisis helplines, (B) connect with a peer, (C) keep going as we are, or (D) I'll back off. You don't have to choose. The Chamber is always there.`;
+  }
+}
+
+// Wire safety checks to call the NVIDIA reasoning model via the server-side proxy
+export async function checkSafetyHarm(message: string): Promise<{ isHarmful: boolean; category?: string; reasoning?: string }> {
+  try {
+    const { data, error } = await supabase.functions.invoke("llm-proxy", {
+      body: {
+        model: "nvidia/nemotron-3-nano-omni-30b-a3b-reasoning",
+        messages: [
+          {
+            role: "system",
+            content: "You are a safety classification filter. Analyze the user's message. Output JSON only. Format: {\"isHarmful\": boolean, \"category\": \"self_harm\" | \"harm_to_others\" | \"harassment\" | \"hate_speech\" | \"none\", \"reasoning\": string}."
+          },
+          {
+            role: "user",
+            content: message
+          }
+        ],
+        temperature: 0.1
+      }
+    });
+
+    if (error) throw error;
+    
+    const choice = data?.choices?.[0]?.message?.content || "";
+    try {
+      const parsed = JSON.parse(choice.replace(/```json/g, "").replace(/```/g, "").trim());
+      return {
+        isHarmful: !!parsed.isHarmful,
+        category: parsed.category,
+        reasoning: parsed.reasoning
+      };
+    } catch {
+      // Regex parsing fallback
+      const isHarmful = /"isHarmful":\s*true/i.test(choice) || /self_harm|harm_to_others/i.test(choice);
+      return { isHarmful };
+    }
+  } catch (e) {
+    console.error("Safety check invocation error:", e);
+    return { isHarmful: false };
   }
 }

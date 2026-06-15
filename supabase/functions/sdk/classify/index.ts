@@ -34,17 +34,6 @@ Deno.serve(async (req) => {
   const body = await req.json();
   const { url, title, content_snippet, platform } = body;
 
-  const anthropicKey = Deno.env.get("ANTHROPIC_API_KEY");
-
-  if (!anthropicKey) {
-    return new Response(JSON.stringify({
-      is_educational: false,
-      domains: [],
-      suggested_entry_type: null,
-      relevance_text: "Classification unavailable — API key not configured",
-    }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
-  }
-
   const prompt = `Classify this web page activity for a learning portfolio system.
 URL: ${url}
 Title: ${title}
@@ -54,28 +43,43 @@ Snippet: ${content_snippet?.slice(0, 500) ?? ""}
 Return JSON only (no markdown): { "is_educational": boolean, "domains": string[], "suggested_entry_type": "action"|"experiment"|"contribution"|"perspective_shift"|null, "relevance_text": string }
 relevance_text must be max 20 words.`;
 
-  const response = await fetch("https://api.anthropic.com/v1/messages", {
-    method: "POST",
-    headers: {
-      "x-api-key": anthropicKey,
-      "anthropic-version": "2023-06-01",
-      "content-type": "application/json",
-    },
-    body: JSON.stringify({
-      model: "claude-haiku-20240307",
-      max_tokens: 300,
-      messages: [{ role: "user", content: prompt }],
-    }),
-  });
-
-  const aiData = await response.json();
-  const text = aiData.content?.[0]?.text ?? "{}";
-
   try {
-    const result = JSON.parse(text);
+    const response = await fetch(`${supabaseUrl}/functions/v1/llm-proxy`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": authHeader,
+      },
+      body: JSON.stringify({
+        model: "nvidia/nemotron-3-nano-omni-30b-a3b-reasoning",
+        messages: [{ role: "user", content: prompt }],
+        temperature: 0.2,
+        max_tokens: 300,
+      }),
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(`LLM Proxy returned error: ${errorText}`);
+    }
+
+    const aiData = await response.json();
+    const text = aiData.choices?.[0]?.message?.content ?? "{}";
+    
+    // Extract JSON block if output contains markdown code fence
+    const jsonMatch = text.match(/\{[\s\S]*\}/);
+    const parsedText = jsonMatch ? jsonMatch[0] : text;
+
+    const result = JSON.parse(parsedText);
     return new Response(JSON.stringify(result), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
-  } catch {
-    return new Response(JSON.stringify({ is_educational: false, domains: [], suggested_entry_type: null, relevance_text: "Could not classify" }), {
+  } catch (err) {
+    console.error("Classification error:", err);
+    return new Response(JSON.stringify({ 
+      is_educational: false, 
+      domains: [], 
+      suggested_entry_type: null, 
+      relevance_text: "Could not classify" 
+    }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   }

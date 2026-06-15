@@ -40,7 +40,44 @@ serve(async (req) => {
         });
       }
 
-      // Create entry
+      // Call Nvidia embeddings API
+      const apiKey = Deno.env.get("VITE_NVIDIA_API");
+      let embeddingVector = new Array(1536).fill(0);
+      
+      if (apiKey) {
+        try {
+          const embedRes = await fetch("https://integrate.api.nvidia.com/v1/embeddings", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              "Authorization": `Bearer ${apiKey}`,
+            },
+            body: JSON.stringify({
+              input: [`${title} ${entryBody}`],
+              model: "nvidia/embed-qa-4",
+              encoding_format: "float",
+            }),
+          });
+          if (embedRes.ok) {
+            const embedData = await embedRes.json();
+            embeddingVector = embedData.data?.[0]?.embedding || embeddingVector;
+          } else {
+            console.error("NVIDIA embedding error status:", embedRes.status);
+            // fallback pseudo-deterministic vector
+            for (let i = 0; i < title.length && i < 1536; i++) {
+              embeddingVector[i] = title.charCodeAt(i) / 256.0;
+            }
+          }
+        } catch (err) {
+          console.error("Failed to generate embedding for cortex entry:", err);
+          // fallback pseudo-deterministic vector
+          for (let i = 0; i < title.length && i < 1536; i++) {
+            embeddingVector[i] = title.charCodeAt(i) / 256.0;
+          }
+        }
+      }
+
+      // Create entry with embedding
       const { data: entry, error: entryError } = await supabaseClient
         .from('cortex_entries')
         .insert({
@@ -55,6 +92,7 @@ serve(async (req) => {
           domains: domains || [],
           is_public: is_public ?? true,
           happened_at: happened_at || null,
+          embedding: embeddingVector,
         })
         .select()
         .single();

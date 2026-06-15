@@ -9,15 +9,19 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as TransparencyRouteImport } from './routes/transparency'
 import { Route as AuthRouteImport } from './routes/auth'
 import { Route as ExtensionRouteRouteImport } from './routes/extension/route'
 import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/route'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as VerifyCredentialIdRouteImport } from './routes/verify/$credentialId'
 import { Route as ExtensionPopupRouteImport } from './routes/extension/popup'
 import { Route as AuthenticatedWellbeingRouteImport } from './routes/_authenticated/wellbeing'
 import { Route as AuthenticatedSettingsRouteImport } from './routes/_authenticated/settings'
 import { Route as AuthenticatedOnboardingRouteImport } from './routes/_authenticated/onboarding'
 import { Route as AuthenticatedMentorRouteImport } from './routes/_authenticated/mentor'
+import { Route as AuthenticatedKnowledgeBaseRouteImport } from './routes/_authenticated/knowledge-base'
+import { Route as AuthenticatedGovernanceRouteImport } from './routes/_authenticated/governance'
 import { Route as AuthenticatedDomainsRouteImport } from './routes/_authenticated/domains'
 import { Route as AuthenticatedDashboardRouteImport } from './routes/_authenticated/dashboard'
 import { Route as AuthenticatedCortexRouteImport } from './routes/_authenticated/cortex'
@@ -25,8 +29,20 @@ import { Route as AuthenticatedCommunityRouteImport } from './routes/_authentica
 import { Route as AuthenticatedCoachRouteImport } from './routes/_authenticated/coach'
 import { Route as AuthenticatedChamberRouteImport } from './routes/_authenticated/chamber'
 import { Route as AuthenticatedIntegrationsRouteRouteImport } from './routes/_authenticated/integrations/route'
+import { Route as AuthenticatedWalletIndexRouteImport } from './routes/_authenticated/wallet/index'
+import { Route as AuthenticatedQuestsIndexRouteImport } from './routes/_authenticated/quests/index'
+import { Route as AuthenticatedKnowledgeMapIndexRouteImport } from './routes/_authenticated/knowledge-map/index'
+import { Route as AuthenticatedInstitutionalIndexRouteImport } from './routes/_authenticated/institutional/index'
+import { Route as AuthenticatedImaIndexRouteImport } from './routes/_authenticated/ima/index'
+import { Route as AuthenticatedGuardianIndexRouteImport } from './routes/_authenticated/guardian/index'
+import { Route as AuthenticatedQuestsQuestIdRouteImport } from './routes/_authenticated/quests/$questId'
 import { Route as AuthenticatedIntegrationsSuggestionsRouteImport } from './routes/_authenticated/integrations/suggestions'
 
+const TransparencyRoute = TransparencyRouteImport.update({
+  id: '/transparency',
+  path: '/transparency',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const AuthRoute = AuthRouteImport.update({
   id: '/auth',
   path: '/auth',
@@ -44,6 +60,11 @@ const AuthenticatedRouteRoute = AuthenticatedRouteRouteImport.update({
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const VerifyCredentialIdRoute = VerifyCredentialIdRouteImport.update({
+  id: '/verify/$credentialId',
+  path: '/verify/$credentialId',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ExtensionPopupRoute = ExtensionPopupRouteImport.update({
@@ -69,6 +90,17 @@ const AuthenticatedOnboardingRoute = AuthenticatedOnboardingRouteImport.update({
 const AuthenticatedMentorRoute = AuthenticatedMentorRouteImport.update({
   id: '/mentor',
   path: '/mentor',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
+const AuthenticatedKnowledgeBaseRoute =
+  AuthenticatedKnowledgeBaseRouteImport.update({
+    id: '/knowledge-base',
+    path: '/knowledge-base',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
+const AuthenticatedGovernanceRoute = AuthenticatedGovernanceRouteImport.update({
+  id: '/governance',
+  path: '/governance',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
 const AuthenticatedDomainsRoute = AuthenticatedDomainsRouteImport.update({
@@ -107,6 +139,47 @@ const AuthenticatedIntegrationsRouteRoute =
     path: '/integrations',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
+const AuthenticatedWalletIndexRoute =
+  AuthenticatedWalletIndexRouteImport.update({
+    id: '/wallet/',
+    path: '/wallet/',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
+const AuthenticatedQuestsIndexRoute =
+  AuthenticatedQuestsIndexRouteImport.update({
+    id: '/quests/',
+    path: '/quests/',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
+const AuthenticatedKnowledgeMapIndexRoute =
+  AuthenticatedKnowledgeMapIndexRouteImport.update({
+    id: '/knowledge-map/',
+    path: '/knowledge-map/',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
+const AuthenticatedInstitutionalIndexRoute =
+  AuthenticatedInstitutionalIndexRouteImport.update({
+    id: '/institutional/',
+    path: '/institutional/',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
+const AuthenticatedImaIndexRoute = AuthenticatedImaIndexRouteImport.update({
+  id: '/ima/',
+  path: '/ima/',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
+const AuthenticatedGuardianIndexRoute =
+  AuthenticatedGuardianIndexRouteImport.update({
+    id: '/guardian/',
+    path: '/guardian/',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
+const AuthenticatedQuestsQuestIdRoute =
+  AuthenticatedQuestsQuestIdRouteImport.update({
+    id: '/quests/$questId',
+    path: '/quests/$questId',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 const AuthenticatedIntegrationsSuggestionsRoute =
   AuthenticatedIntegrationsSuggestionsRouteImport.update({
     id: '/suggestions',
@@ -118,6 +191,7 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/extension': typeof ExtensionRouteRouteWithChildren
   '/auth': typeof AuthRoute
+  '/transparency': typeof TransparencyRoute
   '/integrations': typeof AuthenticatedIntegrationsRouteRouteWithChildren
   '/chamber': typeof AuthenticatedChamberRoute
   '/coach': typeof AuthenticatedCoachRoute
@@ -125,17 +199,28 @@ export interface FileRoutesByFullPath {
   '/cortex': typeof AuthenticatedCortexRoute
   '/dashboard': typeof AuthenticatedDashboardRoute
   '/domains': typeof AuthenticatedDomainsRoute
+  '/governance': typeof AuthenticatedGovernanceRoute
+  '/knowledge-base': typeof AuthenticatedKnowledgeBaseRoute
   '/mentor': typeof AuthenticatedMentorRoute
   '/onboarding': typeof AuthenticatedOnboardingRoute
   '/settings': typeof AuthenticatedSettingsRoute
   '/wellbeing': typeof AuthenticatedWellbeingRoute
   '/extension/popup': typeof ExtensionPopupRoute
+  '/verify/$credentialId': typeof VerifyCredentialIdRoute
   '/integrations/suggestions': typeof AuthenticatedIntegrationsSuggestionsRoute
+  '/quests/$questId': typeof AuthenticatedQuestsQuestIdRoute
+  '/guardian/': typeof AuthenticatedGuardianIndexRoute
+  '/ima/': typeof AuthenticatedImaIndexRoute
+  '/institutional/': typeof AuthenticatedInstitutionalIndexRoute
+  '/knowledge-map/': typeof AuthenticatedKnowledgeMapIndexRoute
+  '/quests/': typeof AuthenticatedQuestsIndexRoute
+  '/wallet/': typeof AuthenticatedWalletIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/extension': typeof ExtensionRouteRouteWithChildren
   '/auth': typeof AuthRoute
+  '/transparency': typeof TransparencyRoute
   '/integrations': typeof AuthenticatedIntegrationsRouteRouteWithChildren
   '/chamber': typeof AuthenticatedChamberRoute
   '/coach': typeof AuthenticatedCoachRoute
@@ -143,12 +228,22 @@ export interface FileRoutesByTo {
   '/cortex': typeof AuthenticatedCortexRoute
   '/dashboard': typeof AuthenticatedDashboardRoute
   '/domains': typeof AuthenticatedDomainsRoute
+  '/governance': typeof AuthenticatedGovernanceRoute
+  '/knowledge-base': typeof AuthenticatedKnowledgeBaseRoute
   '/mentor': typeof AuthenticatedMentorRoute
   '/onboarding': typeof AuthenticatedOnboardingRoute
   '/settings': typeof AuthenticatedSettingsRoute
   '/wellbeing': typeof AuthenticatedWellbeingRoute
   '/extension/popup': typeof ExtensionPopupRoute
+  '/verify/$credentialId': typeof VerifyCredentialIdRoute
   '/integrations/suggestions': typeof AuthenticatedIntegrationsSuggestionsRoute
+  '/quests/$questId': typeof AuthenticatedQuestsQuestIdRoute
+  '/guardian': typeof AuthenticatedGuardianIndexRoute
+  '/ima': typeof AuthenticatedImaIndexRoute
+  '/institutional': typeof AuthenticatedInstitutionalIndexRoute
+  '/knowledge-map': typeof AuthenticatedKnowledgeMapIndexRoute
+  '/quests': typeof AuthenticatedQuestsIndexRoute
+  '/wallet': typeof AuthenticatedWalletIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -156,6 +251,7 @@ export interface FileRoutesById {
   '/_authenticated': typeof AuthenticatedRouteRouteWithChildren
   '/extension': typeof ExtensionRouteRouteWithChildren
   '/auth': typeof AuthRoute
+  '/transparency': typeof TransparencyRoute
   '/_authenticated/integrations': typeof AuthenticatedIntegrationsRouteRouteWithChildren
   '/_authenticated/chamber': typeof AuthenticatedChamberRoute
   '/_authenticated/coach': typeof AuthenticatedCoachRoute
@@ -163,12 +259,22 @@ export interface FileRoutesById {
   '/_authenticated/cortex': typeof AuthenticatedCortexRoute
   '/_authenticated/dashboard': typeof AuthenticatedDashboardRoute
   '/_authenticated/domains': typeof AuthenticatedDomainsRoute
+  '/_authenticated/governance': typeof AuthenticatedGovernanceRoute
+  '/_authenticated/knowledge-base': typeof AuthenticatedKnowledgeBaseRoute
   '/_authenticated/mentor': typeof AuthenticatedMentorRoute
   '/_authenticated/onboarding': typeof AuthenticatedOnboardingRoute
   '/_authenticated/settings': typeof AuthenticatedSettingsRoute
   '/_authenticated/wellbeing': typeof AuthenticatedWellbeingRoute
   '/extension/popup': typeof ExtensionPopupRoute
+  '/verify/$credentialId': typeof VerifyCredentialIdRoute
   '/_authenticated/integrations/suggestions': typeof AuthenticatedIntegrationsSuggestionsRoute
+  '/_authenticated/quests/$questId': typeof AuthenticatedQuestsQuestIdRoute
+  '/_authenticated/guardian/': typeof AuthenticatedGuardianIndexRoute
+  '/_authenticated/ima/': typeof AuthenticatedImaIndexRoute
+  '/_authenticated/institutional/': typeof AuthenticatedInstitutionalIndexRoute
+  '/_authenticated/knowledge-map/': typeof AuthenticatedKnowledgeMapIndexRoute
+  '/_authenticated/quests/': typeof AuthenticatedQuestsIndexRoute
+  '/_authenticated/wallet/': typeof AuthenticatedWalletIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -176,6 +282,7 @@ export interface FileRouteTypes {
     | '/'
     | '/extension'
     | '/auth'
+    | '/transparency'
     | '/integrations'
     | '/chamber'
     | '/coach'
@@ -183,17 +290,28 @@ export interface FileRouteTypes {
     | '/cortex'
     | '/dashboard'
     | '/domains'
+    | '/governance'
+    | '/knowledge-base'
     | '/mentor'
     | '/onboarding'
     | '/settings'
     | '/wellbeing'
     | '/extension/popup'
+    | '/verify/$credentialId'
     | '/integrations/suggestions'
+    | '/quests/$questId'
+    | '/guardian/'
+    | '/ima/'
+    | '/institutional/'
+    | '/knowledge-map/'
+    | '/quests/'
+    | '/wallet/'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
     | '/extension'
     | '/auth'
+    | '/transparency'
     | '/integrations'
     | '/chamber'
     | '/coach'
@@ -201,18 +319,29 @@ export interface FileRouteTypes {
     | '/cortex'
     | '/dashboard'
     | '/domains'
+    | '/governance'
+    | '/knowledge-base'
     | '/mentor'
     | '/onboarding'
     | '/settings'
     | '/wellbeing'
     | '/extension/popup'
+    | '/verify/$credentialId'
     | '/integrations/suggestions'
+    | '/quests/$questId'
+    | '/guardian'
+    | '/ima'
+    | '/institutional'
+    | '/knowledge-map'
+    | '/quests'
+    | '/wallet'
   id:
     | '__root__'
     | '/'
     | '/_authenticated'
     | '/extension'
     | '/auth'
+    | '/transparency'
     | '/_authenticated/integrations'
     | '/_authenticated/chamber'
     | '/_authenticated/coach'
@@ -220,12 +349,22 @@ export interface FileRouteTypes {
     | '/_authenticated/cortex'
     | '/_authenticated/dashboard'
     | '/_authenticated/domains'
+    | '/_authenticated/governance'
+    | '/_authenticated/knowledge-base'
     | '/_authenticated/mentor'
     | '/_authenticated/onboarding'
     | '/_authenticated/settings'
     | '/_authenticated/wellbeing'
     | '/extension/popup'
+    | '/verify/$credentialId'
     | '/_authenticated/integrations/suggestions'
+    | '/_authenticated/quests/$questId'
+    | '/_authenticated/guardian/'
+    | '/_authenticated/ima/'
+    | '/_authenticated/institutional/'
+    | '/_authenticated/knowledge-map/'
+    | '/_authenticated/quests/'
+    | '/_authenticated/wallet/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -233,10 +372,19 @@ export interface RootRouteChildren {
   AuthenticatedRouteRoute: typeof AuthenticatedRouteRouteWithChildren
   ExtensionRouteRoute: typeof ExtensionRouteRouteWithChildren
   AuthRoute: typeof AuthRoute
+  TransparencyRoute: typeof TransparencyRoute
+  VerifyCredentialIdRoute: typeof VerifyCredentialIdRoute
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/transparency': {
+      id: '/transparency'
+      path: '/transparency'
+      fullPath: '/transparency'
+      preLoaderRoute: typeof TransparencyRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/auth': {
       id: '/auth'
       path: '/auth'
@@ -263,6 +411,13 @@ declare module '@tanstack/react-router' {
       path: '/'
       fullPath: '/'
       preLoaderRoute: typeof IndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/verify/$credentialId': {
+      id: '/verify/$credentialId'
+      path: '/verify/$credentialId'
+      fullPath: '/verify/$credentialId'
+      preLoaderRoute: typeof VerifyCredentialIdRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/extension/popup': {
@@ -298,6 +453,20 @@ declare module '@tanstack/react-router' {
       path: '/mentor'
       fullPath: '/mentor'
       preLoaderRoute: typeof AuthenticatedMentorRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/knowledge-base': {
+      id: '/_authenticated/knowledge-base'
+      path: '/knowledge-base'
+      fullPath: '/knowledge-base'
+      preLoaderRoute: typeof AuthenticatedKnowledgeBaseRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/governance': {
+      id: '/_authenticated/governance'
+      path: '/governance'
+      fullPath: '/governance'
+      preLoaderRoute: typeof AuthenticatedGovernanceRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
     '/_authenticated/domains': {
@@ -349,6 +518,55 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedIntegrationsRouteRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/wallet/': {
+      id: '/_authenticated/wallet/'
+      path: '/wallet'
+      fullPath: '/wallet/'
+      preLoaderRoute: typeof AuthenticatedWalletIndexRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/quests/': {
+      id: '/_authenticated/quests/'
+      path: '/quests'
+      fullPath: '/quests/'
+      preLoaderRoute: typeof AuthenticatedQuestsIndexRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/knowledge-map/': {
+      id: '/_authenticated/knowledge-map/'
+      path: '/knowledge-map'
+      fullPath: '/knowledge-map/'
+      preLoaderRoute: typeof AuthenticatedKnowledgeMapIndexRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/institutional/': {
+      id: '/_authenticated/institutional/'
+      path: '/institutional'
+      fullPath: '/institutional/'
+      preLoaderRoute: typeof AuthenticatedInstitutionalIndexRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/ima/': {
+      id: '/_authenticated/ima/'
+      path: '/ima'
+      fullPath: '/ima/'
+      preLoaderRoute: typeof AuthenticatedImaIndexRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/guardian/': {
+      id: '/_authenticated/guardian/'
+      path: '/guardian'
+      fullPath: '/guardian/'
+      preLoaderRoute: typeof AuthenticatedGuardianIndexRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/quests/$questId': {
+      id: '/_authenticated/quests/$questId'
+      path: '/quests/$questId'
+      fullPath: '/quests/$questId'
+      preLoaderRoute: typeof AuthenticatedQuestsQuestIdRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/integrations/suggestions': {
       id: '/_authenticated/integrations/suggestions'
       path: '/suggestions'
@@ -382,10 +600,19 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedCortexRoute: typeof AuthenticatedCortexRoute
   AuthenticatedDashboardRoute: typeof AuthenticatedDashboardRoute
   AuthenticatedDomainsRoute: typeof AuthenticatedDomainsRoute
+  AuthenticatedGovernanceRoute: typeof AuthenticatedGovernanceRoute
+  AuthenticatedKnowledgeBaseRoute: typeof AuthenticatedKnowledgeBaseRoute
   AuthenticatedMentorRoute: typeof AuthenticatedMentorRoute
   AuthenticatedOnboardingRoute: typeof AuthenticatedOnboardingRoute
   AuthenticatedSettingsRoute: typeof AuthenticatedSettingsRoute
   AuthenticatedWellbeingRoute: typeof AuthenticatedWellbeingRoute
+  AuthenticatedQuestsQuestIdRoute: typeof AuthenticatedQuestsQuestIdRoute
+  AuthenticatedGuardianIndexRoute: typeof AuthenticatedGuardianIndexRoute
+  AuthenticatedImaIndexRoute: typeof AuthenticatedImaIndexRoute
+  AuthenticatedInstitutionalIndexRoute: typeof AuthenticatedInstitutionalIndexRoute
+  AuthenticatedKnowledgeMapIndexRoute: typeof AuthenticatedKnowledgeMapIndexRoute
+  AuthenticatedQuestsIndexRoute: typeof AuthenticatedQuestsIndexRoute
+  AuthenticatedWalletIndexRoute: typeof AuthenticatedWalletIndexRoute
 }
 
 const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
@@ -397,10 +624,19 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedCortexRoute: AuthenticatedCortexRoute,
   AuthenticatedDashboardRoute: AuthenticatedDashboardRoute,
   AuthenticatedDomainsRoute: AuthenticatedDomainsRoute,
+  AuthenticatedGovernanceRoute: AuthenticatedGovernanceRoute,
+  AuthenticatedKnowledgeBaseRoute: AuthenticatedKnowledgeBaseRoute,
   AuthenticatedMentorRoute: AuthenticatedMentorRoute,
   AuthenticatedOnboardingRoute: AuthenticatedOnboardingRoute,
   AuthenticatedSettingsRoute: AuthenticatedSettingsRoute,
   AuthenticatedWellbeingRoute: AuthenticatedWellbeingRoute,
+  AuthenticatedQuestsQuestIdRoute: AuthenticatedQuestsQuestIdRoute,
+  AuthenticatedGuardianIndexRoute: AuthenticatedGuardianIndexRoute,
+  AuthenticatedImaIndexRoute: AuthenticatedImaIndexRoute,
+  AuthenticatedInstitutionalIndexRoute: AuthenticatedInstitutionalIndexRoute,
+  AuthenticatedKnowledgeMapIndexRoute: AuthenticatedKnowledgeMapIndexRoute,
+  AuthenticatedQuestsIndexRoute: AuthenticatedQuestsIndexRoute,
+  AuthenticatedWalletIndexRoute: AuthenticatedWalletIndexRoute,
 }
 
 const AuthenticatedRouteRouteWithChildren =
@@ -423,6 +659,8 @@ const rootRouteChildren: RootRouteChildren = {
   AuthenticatedRouteRoute: AuthenticatedRouteRouteWithChildren,
   ExtensionRouteRoute: ExtensionRouteRouteWithChildren,
   AuthRoute: AuthRoute,
+  TransparencyRoute: TransparencyRoute,
+  VerifyCredentialIdRoute: VerifyCredentialIdRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

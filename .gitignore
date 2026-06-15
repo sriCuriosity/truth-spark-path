@@ -31,3 +31,5 @@ dist-ssr
 *.sln
 *.sw?
 workspace.code-workspace
+# Local Netlify folder
+.netlify

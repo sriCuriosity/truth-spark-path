@@ -7,7 +7,7 @@ export function ChamberSafetyFooter() {
   const { data: resources = [] } = useQuery({
     queryKey: ["mh-resources", "IN"],
     queryFn: async () => {
-      const { data } = await supabase
+      const { data } = await (supabase as any)
         .from("mental_health_resources")
         .select("*")
         .eq("country_code", "IN")
@@ -16,7 +16,7 @@ export function ChamberSafetyFooter() {
       return data ?? [];
     },
   });
-
+ 
   const primary = resources[0];
 
   return (

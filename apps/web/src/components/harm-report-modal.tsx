@@ -8,7 +8,7 @@ type Props = {
   open: boolean;
   onClose: () => void;
   reportedUserId?: string | null;
-};
+}; 
 
 const HARM_TYPES = [
   { id: "harassment", label: "Harassment or targeting" },
@@ -31,7 +31,7 @@ export function HarmReportModal({ open, onClose, reportedUserId }: Props) {
     setSaving(true);
     const { data: u } = await supabase.auth.getUser();
     if (!u.user) return;
-    const { error } = await supabase.from("community_harm_reports").insert({
+    const { error } = await (supabase as any).from("community_harm_reports").insert({
       reporter_id: u.user.id,
       reported_user_id: reportedUserId ?? null,
       harm_type: harmType,

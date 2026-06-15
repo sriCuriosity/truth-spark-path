@@ -15,7 +15,7 @@ function GuardianDashboard() {
     queryFn: async () => {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return [];
-      const { data } = await supabase
+      const { data } = await (supabase as any)
         .from("guardian_connections")
         .select("*, profiles!guardian_connections_guardian_id_fkey(*)")
         .eq("guardian_id", user.id);
@@ -28,7 +28,7 @@ function GuardianDashboard() {
     queryFn: async () => {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return [];
-      const { data } = await supabase
+      const { data } = await (supabase as any)
         .from("anti_addiction_alerts")
         .select("*, profiles(*)")
         .in("user_id", connections.map((c: any) => c.ward_id))
@@ -43,7 +43,7 @@ function GuardianDashboard() {
     queryFn: async () => {
       const wardIds = connections.map((c: any) => c.ward_id);
       if (wardIds.length === 0) return [];
-      const { data } = await supabase
+      const { data } = await (supabase as any)
         .from("wellbeing_checkins")
         .select("*")
         .in("user_id", wardIds)

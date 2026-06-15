@@ -2,15 +2,15 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { AppShell } from "@/components/app-shell";
-import { Wallet, Key, Shield, Plus, Copy, CheckCircle } from "lucide-react";
+import { Wallet as WalletIcon, Key, Shield, Plus, Copy, CheckCircle } from "lucide-react";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/_authenticated/wallet/")({
   head: () => ({ meta: [{ title: "NEXUS — SSI Wallet" }] }),
-  component: Wallet,
+  component: WalletComponent,
 });
 
-function Wallet() {
+function WalletComponent() {
   const qc = useQueryClient();
 
   const { data: didDocument, isLoading } = useQuery({
@@ -18,7 +18,7 @@ function Wallet() {
     queryFn: async () => {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return null;
-      const { data } = await supabase
+      const { data } = await (supabase as any)
         .from("did_documents")
         .select("*")
         .eq("user_id", user.id)
@@ -32,7 +32,7 @@ function Wallet() {
     queryFn: async () => {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return [];
-      const { data } = await supabase
+      const { data } = await (supabase as any)
         .from("verifiable_credentials")
         .select("*")
         .eq("user_id", user.id)
@@ -46,12 +46,12 @@ function Wallet() {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error("Not authenticated");
 
-      const { data: didData } = await supabase.rpc("generate_did", {
+      const { data: didData } = await (supabase as any).rpc("generate_did", {
         p_user_id: user.id,
         p_did_method: "web",
       });
 
-      const { data, error } = await supabase
+      const { data, error } = await (supabase as any)
         .from("did_documents")
         .insert({
           user_id: user.id,
@@ -97,7 +97,7 @@ function Wallet() {
 
         <div className="nexus-card p-6">
           <div className="flex items-center gap-3 mb-4">
-            <Wallet className="h-6 w-6 text-accent-teal" />
+            <WalletIcon className="h-6 w-6 text-accent-teal" />
             <h3 className="font-semibold">Your DID</h3>
           </div>
 

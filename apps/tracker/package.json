@@ -1,0 +1,15 @@
+{
+  "name": "@nexus/tracker",
+  "version": "0.1.0",
+  "description": "NEXUS local workspace watcher and semantic tags indexer",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron ."
+  },
+  "dependencies": {
+    "sqlite3": "^5.1.6"
+  },
+  "devDependencies": {
+    "electron": "^25.3.0"
+  }
+}

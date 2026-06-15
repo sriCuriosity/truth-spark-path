@@ -1,0 +1,40 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:15-alpine
+    container_name: nexus-sandbox-db
+    environment:
+      POSTGRES_DB: nexus_sandbox
+      POSTGRES_USER: nexus_dev
+      POSTGRES_PASSWORD: secret_password
+    ports:
+      - "54322:5432"
+    volumes:
+      - ./init-scripts:/docker-entrypoint-initdb.d
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U nexus_dev -d nexus_sandbox"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  # Mock API server to emulate Supabase endpoints if requested
+  mock-api:
+    image: node:18-alpine
+    container_name: nexus-sandbox-api
+    ports:
+      - "54321:54321"
+    environment:
+      DATABASE_URL: postgres://nexus_dev:secret_password@postgres:5432/nexus_sandbox
+      PORT: 54321
+    volumes:
+      - ./mock-server:/usr/src/app
+    working_dir: /usr/src/app
+    command: node index.js
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+volumes:
+  postgres_data:

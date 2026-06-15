@@ -104,9 +104,45 @@ serve(async (req) => {
   }
 });
 
-// Placeholder function - in production, call OpenAI API
+// Generate embedding using NVIDIA embedding model
 async function generateEmbedding(text: string): Promise<number[]> {
-  // This would call OpenAI's text-embedding-3-small API
-  // For now, return a zero vector of 1536 dimensions
-  return new Array(1536).fill(0);
+  const apiKey = Deno.env.get("VITE_NVIDIA_API");
+  if (!apiKey) {
+    console.warn("VITE_NVIDIA_API key not found, using pseudo-deterministic vector fallback.");
+    const vec = new Array(1536).fill(0);
+    for (let i = 0; i < text.length && i < 1536; i++) {
+      vec[i] = text.charCodeAt(i) / 256.0;
+    }
+    return vec;
+  }
+
+  try {
+    const res = await fetch("https://integrate.api.nvidia.com/v1/embeddings", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${apiKey}`,
+      },
+      body: JSON.stringify({
+        input: [text],
+        model: "nvidia/embed-qa-4",
+        encoding_format: "float",
+      }),
+    });
+
+    if (!res.ok) {
+      const err = await res.text();
+      throw new Error(`NVIDIA embedding API returned: ${err}`);
+    }
+
+    const resData = await res.json();
+    return resData.data?.[0]?.embedding || new Array(1536).fill(0);
+  } catch (error) {
+    console.error("Failed to generate NVIDIA embedding, using hash fallback:", error);
+    const vec = new Array(1536).fill(0);
+    for (let i = 0; i < text.length && i < 1536; i++) {
+      vec[i] = text.charCodeAt(i) / 256.0;
+    }
+    return vec;
+  }
 }

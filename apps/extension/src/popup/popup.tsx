@@ -24,10 +24,10 @@ document.addEventListener('DOMContentLoaded', () => {
     const captureBtn = document.getElementById('captureBtn');
     if (captureBtn) {
       captureBtn.addEventListener('click', () => {
-        chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+        (chrome as any).tabs.query({ active: true, currentWindow: true }, (tabs: any[]) => {
           const tab = tabs[0];
           if (tab.url) {
-            chrome.runtime.sendMessage({
+            (chrome as any).runtime.sendMessage({
               action: 'addToCortex',
               data: {
                 url: tab.url,
@@ -40,3 +40,4 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   }
 });
+ 

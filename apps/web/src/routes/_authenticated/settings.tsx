@@ -1,8 +1,7 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
-import { useQuery } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Github, Youtube, Linkedin, BookOpen, Globe, Check, X, RefreshCw, Copy, AlertTriangle, Key, Trash2 } from "lucide-react";
 import { AppShell } from "@/components/app-shell";
 import { AIVoicePicker } from "@/components/ai-coach-panel";
@@ -387,7 +386,6 @@ function Settings() {
   const navigate = useNavigate();
   const [profile, setProfile] = useState<ProfileRow | null>(null);
   const [tab, setTab] = useState<Tab>("profile");
-  const [profile, setProfile] = useState<any>(null);
   const [saving, setSaving] = useState(false);
   const [userId, setUserId] = useState<string | null>(null);
 
@@ -419,7 +417,11 @@ function Settings() {
   const { data: mhResources = [] } = useQuery({
     queryKey: ["mh-resources-settings"],
     queryFn: async () => {
-      const { data } = await supabase.from("mental_health_resources").select("*").eq("is_active", true).limit(6);
+      const { data } = await supabase
+        .from("mental_health_resources")
+        .select("*")
+        .eq("is_active", true)
+        .limit(6);
       return data ?? [];
     },
   });
@@ -427,40 +429,89 @@ function Settings() {
   async function save() {
     if (!profile) return;
     setSaving(true);
-    const { error } = await supabase.from("profiles").update({
-      display_name: profile.display_name,
-      handle: profile.handle,
-      bio: profile.bio,
-      tier_visibility: profile.tier_visibility,
-      preferred_ai_voice: profile.preferred_ai_voice,
-      safety_preferences: profile.safety_preferences,
-      content_preferences: profile.content_preferences,
-      sovereignty_settings: profile.sovereignty_settings,
-    }).eq("id", profile.id);
+    const { error } = await supabase
+      .from("profiles")
+      .update({
+        display_name: profile.display_name,
+        handle: profile.handle,
+        bio: profile.bio,
+        tier_visibility: profile.tier_visibility,
+        preferred_ai_voice: profile.preferred_ai_voice,
+        safety_preferences: profile.safety_preferences,
+        content_preferences: profile.content_preferences,
+        sovereignty_settings: profile.sovereignty_settings,
+      })
+      .eq("id", profile.id);
     setSaving(false);
     if (error) toast.error("Couldn't save");
     else toast.success("Saved.");
   }
 
   async function exportData() {
+    const passphrase = prompt("Enter a secret passphrase to encrypt your sovereign export file (keep this key safe to decrypt it later):");
+    if (!passphrase) {
+      toast.error("Passphrase is required to encrypt your data for export.");
+      return;
+    }
+
     const { data: u } = await supabase.auth.getUser();
     if (!u.user) return;
     const [entries, checkins, achievements] = await Promise.all([
       supabase.from("cortex_entries").select("*").eq("user_id", u.user.id),
       supabase.from("wellbeing_checkins").select("*").eq("user_id", u.user.id),
-      supabase.from("user_achievements").select("*, achievement:achievements(*)").eq("user_id", u.user.id),
+      supabase
+        .from("user_achievements")
+        .select("*, achievement:achievements(*)")
+        .eq("user_id", u.user.id),
     ]);
-    const blob = new Blob(
-      [JSON.stringify({ cortex: entries.data, wellbeing: checkins.data, achievements: achievements.data }, null, 2)],
-      { type: "application/json" }
+
+    const payload = JSON.stringify(
+      {
+        cortex: entries.data,
+        wellbeing: checkins.data,
+        achievements: achievements.data,
+      },
+      null,
+      2,
     );
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = "nexus-export.json";
-    a.click();
-    URL.revokeObjectURL(url);
+
+    try {
+      const enc = new TextEncoder();
+      const rawKey = enc.encode(passphrase.padEnd(32, '0').slice(0, 32));
+      const key = await window.crypto.subtle.importKey(
+        "raw",
+        rawKey,
+        { name: "AES-GCM" },
+        false,
+        ["encrypt"]
+      );
+      const iv = window.crypto.getRandomValues(new Uint8Array(12));
+      const encrypted = await window.crypto.subtle.encrypt(
+        { name: "AES-GCM", iv },
+        key,
+        enc.encode(payload)
+      );
+
+      const combined = new Uint8Array(iv.length + encrypted.byteLength);
+      combined.set(iv);
+      combined.set(new Uint8Array(encrypted), iv.length);
+
+      const base64 = btoa(String.fromCharCode(...combined));
+
+      const blob = new Blob([base64], { type: "application/octet-stream" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = "nexus-sovereign-export.enc";
+      a.click();
+      URL.revokeObjectURL(url);
+      toast.success("Sovereign data exported and encrypted successfully!");
+    } catch (err: any) {
+      console.error(err);
+      toast.error("Failed to encrypt data.");
+    }
   }
+
 
   async function signOut() {
     await supabase.auth.signOut();
@@ -468,14 +519,40 @@ function Settings() {
   }
 
   function patchSafety(key: string, value: unknown) {
-    setProfile((p) => p ? { ...p, safety_preferences: { ...p.safety_preferences, [key]: value } } : p);
+    setProfile((p) =>
+      p
+        ? {
+            ...p,
+            safety_preferences: {
+              ...(p.safety_preferences ?? {}),
+              [key]: value,
+            },
+          }
+        : p,
+    );
   }
 
   function patchContent(key: string, value: unknown) {
-    setProfile((p) => p ? { ...p, content_preferences: { ...p.content_preferences, [key]: value } } : p);
+    setProfile((p) =>
+      p
+        ? {
+            ...p,
+            content_preferences: {
+              ...(p.content_preferences ?? {}),
+              [key]: value,
+            },
+          }
+        : p,
+    );
   }
 
-  if (!profile) return <AppShell title="Settings"><p className="text-sm text-muted-foreground">Loading…</p></AppShell>;
+  if (!profile) {
+    return (
+      <AppShell title="Settings">
+        <p className="text-sm text-muted-foreground">Loading…</p>
+      </AppShell>
+    );
+  }
 
   const safety = (profile.safety_preferences ?? {}) as Record<string, boolean>;
   const content = (profile.content_preferences ?? {}) as Record<string, boolean | string>;
@@ -483,74 +560,6 @@ function Settings() {
   return (
     <AppShell title="Settings">
       <div className="mx-auto max-w-2xl space-y-6">
-        <section className="nexus-card p-6">
-          <h2 className="mb-4 font-display text-lg font-semibold">Profile</h2>
-          <div className="space-y-3">
-            <label className="block">
-              <span className="text-xs uppercase tracking-wider text-muted-foreground">Display name</span>
-              <input value={profile.display_name ?? ""} onChange={(e) => setProfile({ ...profile, display_name: e.target.value })}
-                className="mt-1 w-full rounded-md border border-border bg-elevated px-3 py-2.5 text-sm outline-none focus:border-primary" />
-            </label>
-            <label className="block">
-              <span className="text-xs uppercase tracking-wider text-muted-foreground">Handle</span>
-              <input value={profile.handle ?? ""} onChange={(e) => setProfile({ ...profile, handle: e.target.value })}
-                className="mt-1 w-full rounded-md border border-border bg-elevated px-3 py-2.5 text-sm outline-none focus:border-primary" />
-            </label>
-            <label className="block">
-              <span className="text-xs uppercase tracking-wider text-muted-foreground">Bio</span>
-              <textarea rows={3} value={profile.bio ?? ""} onChange={(e) => setProfile({ ...profile, bio: e.target.value })}
-                className="mt-1 w-full resize-none rounded-md border border-border bg-elevated px-3 py-2.5 text-sm outline-none focus:border-primary" />
-            </label>
-          </div>
-        </section>
-
-        <section className="nexus-card p-6">
-          <h2 className="mb-2 font-display text-lg font-semibold">AI Coach voice</h2>
-          <p className="mb-4 text-sm text-muted-foreground">Each voice has a documented stance, biases, and blind spots.</p>
-          <AIVoicePicker
-            value={(profile.preferred_ai_voice ?? "socratic") as AIVoiceId}
-            onChange={(v) => setProfile({ ...profile, preferred_ai_voice: v })}
-          />
-        </section>
-
-        <section className="nexus-card p-6">
-          <h2 className="mb-2 font-display text-lg font-semibold">Tier visibility</h2>
-          <p className="mb-4 text-sm text-muted-foreground">Control how visible your tier is — to yourself and others.</p>
-          <div className="space-y-2">
-            {TIER_VISIBILITY.map((opt) => (
-              <label key={opt.id} className={`flex cursor-pointer gap-3 rounded-md border p-3 ${profile.tier_visibility === opt.id ? "border-primary bg-primary/5" : "border-border"}`}>
-                <input
-                  type="radio"
-                  name="tier_visibility"
-                  checked={(profile.tier_visibility ?? "full") === opt.id}
-                  onChange={() => setProfile({ ...profile, tier_visibility: opt.id })}
-                  className="mt-1 accent-[color:var(--primary)]"
-                />
-                <div>
-                  <p className="text-sm font-medium">{opt.label}</p>
-                  <p className="text-xs text-muted-foreground">{opt.desc}</p>
-                </div>
-              </label>
-            ))}
-          </div>
-        </section>
-
-        <section className="nexus-card p-6">
-          <h2 className="mb-2 font-display text-lg font-semibold">Safety preferences</h2>
-          <div className="space-y-3">
-            {[
-              ["crisis_helpline_visible", "Show crisis helplines in Chamber footer"],
-              ["peer_support_circle_accessible", "Show peer support links"],
-              ["ai_can_suggest_human_connection_when_distressed", "AI can suggest human connection when distressed"],
-            ].map(([key, label]) => (
-              <label key={key} className="flex items-center gap-2 text-sm">
-                <input type="checkbox" checked={safety[key] !== false} onChange={(e) => patchSafety(key, e.target.checked)} className="accent-[color:var(--primary)]" />
-                {label}
-              </label>
-            ))}
-          </div>
-        </section>
-        {/* Tab switcher */}
         <div className="flex gap-1 rounded-lg border border-border bg-surface p-1">
           {(["profile", "integrations"] as Tab[]).map((t) => (
             <button
@@ -570,131 +579,174 @@ function Settings() {
               <div className="space-y-3">
                 <label className="block">
                   <span className="text-xs uppercase tracking-wider text-muted-foreground">Display name</span>
-                  <input value={profile.display_name ?? ""} onChange={(e) => setProfile({ ...profile, display_name: e.target.value })}
-                    className="mt-1 w-full rounded-md border border-border bg-elevated px-3 py-2.5 text-sm outline-none focus:border-primary" />
+                  <input
+                    value={profile.display_name ?? ""}
+                    onChange={(e) => setProfile({ ...profile, display_name: e.target.value })}
+                    className="mt-1 w-full rounded-md border border-border bg-elevated px-3 py-2.5 text-sm outline-none focus:border-primary"
+                  />
                 </label>
                 <label className="block">
                   <span className="text-xs uppercase tracking-wider text-muted-foreground">Handle</span>
-                  <input value={profile.handle ?? ""} onChange={(e) => setProfile({ ...profile, handle: e.target.value })}
-                    className="mt-1 w-full rounded-md border border-border bg-elevated px-3 py-2.5 text-sm outline-none focus:border-primary" />
+                  <input
+                    value={profile.handle ?? ""}
+                    onChange={(e) => setProfile({ ...profile, handle: e.target.value })}
+                    className="mt-1 w-full rounded-md border border-border bg-elevated px-3 py-2.5 text-sm outline-none focus:border-primary"
+                  />
                 </label>
                 <label className="block">
                   <span className="text-xs uppercase tracking-wider text-muted-foreground">Bio</span>
-                  <textarea rows={3} value={profile.bio ?? ""} onChange={(e) => setProfile({ ...profile, bio: e.target.value })}
-                    className="mt-1 w-full resize-none rounded-md border border-border bg-elevated px-3 py-2.5 text-sm outline-none focus:border-primary" />
+                  <textarea
+                    rows={3}
+                    value={profile.bio ?? ""}
+                    onChange={(e) => setProfile({ ...profile, bio: e.target.value })}
+                    className="mt-1 w-full resize-none rounded-md border border-border bg-elevated px-3 py-2.5 text-sm outline-none focus:border-primary"
+                  />
                 </label>
-                <button onClick={save} disabled={saving} className="rounded-md bg-primary px-5 py-2 text-sm font-medium text-primary-foreground hover:opacity-90 disabled:opacity-50">
-                  {saving ? "…" : "Save profile"}
-                </button>
               </div>
             </section>
 
-        <section className="nexus-card p-6">
-          <h2 className="mb-2 font-display text-lg font-semibold">Content preferences</h2>
-          <div className="space-y-3">
-            <label className="flex items-center gap-2 text-sm">
-              <input type="checkbox" checked={content.show_warnings !== false} onChange={(e) => patchContent("show_warnings", e.target.checked)} className="accent-[color:var(--primary)]" />
-              Show content warnings before sensitive modules
-            </label>
-            <label className="flex items-center gap-2 text-sm">
-              <input type="checkbox" checked={!!content.auto_skip_intense} onChange={(e) => patchContent("auto_skip_intense", e.target.checked)} className="accent-[color:var(--primary)]" />
-              Auto-skip intense content (opt-in required modules)
-            </label>
-            <label className="flex items-center gap-2 text-sm">
-              <input type="checkbox" checked={content.pause_after_intense_content !== false} onChange={(e) => patchContent("pause_after_intense_content", e.target.checked)} className="accent-[color:var(--primary)]" />
-              Suggest pause after intense content
-            </label>
-          </div>
-        </section>
-
-        <section className="nexus-card p-6" id="sovereignty">
-          <h2 className="mb-2 font-display text-lg font-semibold">Sovereignty</h2>
-          <p className="text-sm text-muted-foreground">Your data. Your audit trail. Your choice.</p>
-          <button onClick={exportData} className="mt-3 rounded-md border border-border bg-elevated px-4 py-2 text-sm hover:bg-elevated/70">
-            Export all data (JSON)
-          </button>
-          {auditLog.length > 0 && (
-            <div className="mt-4 max-h-48 overflow-y-auto rounded-md border border-border bg-elevated p-3">
-              <p className="mb-2 text-[10px] uppercase tracking-wider text-muted-foreground">AI audit log</p>
-              {auditLog.map((row: any) => (
-                <p key={row.id} className="border-b border-border/40 py-1.5 text-xs text-muted-foreground last:border-0">
-                  {new Date(row.created_at).toLocaleString()} — {row.action_description}
-                </p>
-              ))}
-            </div>
-          )}
-        </section>
-
-        {mhResources.length > 0 && (
-          <section className="nexus-card p-6">
-            <h2 className="mb-2 font-display text-lg font-semibold">Crisis resources</h2>
-            <ul className="space-y-2 text-sm">
-              {mhResources.map((r: any) => (
-                <li key={r.id}>
-                  <span className="font-medium">{r.organisation}</span>
-                  <span className="text-muted-foreground"> — {r.contact_info}</span>
-                </li>
-              ))}
-            </ul>
-          </section>
-        )}
-
-        <div className="flex gap-3">
-          <button onClick={save} disabled={saving} className="rounded-md bg-primary px-5 py-2 text-sm font-medium text-primary-foreground hover:opacity-90 disabled:opacity-50">
-            {saving ? "…" : "Save all settings"}
-          </button>
-        </div>
-        {/* Tab switcher */}
-        <div className="flex gap-1 rounded-lg border border-border bg-surface p-1">
-          {(["profile", "integrations"] as Tab[]).map((t) => (
-            <button
-              key={t}
-              onClick={() => setTab(t)}
-              className={`flex-1 rounded-md py-1.5 text-sm font-medium capitalize transition ${tab === t ? "bg-elevated text-foreground" : "text-muted-foreground hover:text-foreground"}`}
-            >
-              {t}
-            </button>
-          ))}
-        </div>
-
-        {tab === "profile" && (
-          <>
             <section className="nexus-card p-6">
-              <h2 className="mb-4 font-display text-lg font-semibold">Profile</h2>
+              <h2 className="mb-2 font-display text-lg font-semibold">AI Coach voice</h2>
+              <p className="mb-4 text-sm text-muted-foreground">
+                Each voice has a documented stance, biases, and blind spots.
+              </p>
+              <AIVoicePicker
+                value={(profile.preferred_ai_voice ?? "socratic") as AIVoiceId}
+                onChange={(v) => setProfile({ ...profile, preferred_ai_voice: v })}
+              />
+            </section>
+
+            <section className="nexus-card p-6">
+              <h2 className="mb-2 font-display text-lg font-semibold">Tier visibility</h2>
+              <p className="mb-4 text-sm text-muted-foreground">
+                Control how visible your tier is to yourself and others.
+              </p>
+              <div className="space-y-2">
+                {TIER_VISIBILITY.map((opt) => (
+                  <label
+                    key={opt.id}
+                    className={`flex cursor-pointer gap-3 rounded-md border p-3 ${profile.tier_visibility === opt.id ? "border-primary bg-primary/5" : "border-border"}`}
+                  >
+                    <input
+                      type="radio"
+                      name="tier_visibility"
+                      checked={(profile.tier_visibility ?? "full") === opt.id}
+                      onChange={() => setProfile({ ...profile, tier_visibility: opt.id })}
+                      className="mt-1 accent-[color:var(--primary)]"
+                    />
+                    <div>
+                      <p className="text-sm font-medium">{opt.label}</p>
+                      <p className="text-xs text-muted-foreground">{opt.desc}</p>
+                    </div>
+                  </label>
+                ))}
+              </div>
+            </section>
+
+            <section className="nexus-card p-6">
+              <h2 className="mb-2 font-display text-lg font-semibold">Safety preferences</h2>
               <div className="space-y-3">
-                <label className="block">
-                  <span className="text-xs uppercase tracking-wider text-muted-foreground">Display name</span>
-                  <input value={profile.display_name ?? ""} onChange={(e) => setProfile({ ...profile, display_name: e.target.value })}
-                    className="mt-1 w-full rounded-md border border-border bg-elevated px-3 py-2.5 text-sm outline-none focus:border-primary" />
-                </label>
-                <label className="block">
-                  <span className="text-xs uppercase tracking-wider text-muted-foreground">Handle</span>
-                  <input value={profile.handle ?? ""} onChange={(e) => setProfile({ ...profile, handle: e.target.value })}
-                    className="mt-1 w-full rounded-md border border-border bg-elevated px-3 py-2.5 text-sm outline-none focus:border-primary" />
-                </label>
-                <label className="block">
-                  <span className="text-xs uppercase tracking-wider text-muted-foreground">Bio</span>
-                  <textarea rows={3} value={profile.bio ?? ""} onChange={(e) => setProfile({ ...profile, bio: e.target.value })}
-                    className="mt-1 w-full resize-none rounded-md border border-border bg-elevated px-3 py-2.5 text-sm outline-none focus:border-primary" />
-                </label>
-                <button onClick={save} disabled={saving} className="rounded-md bg-primary px-5 py-2 text-sm font-medium text-primary-foreground hover:opacity-90 disabled:opacity-50">
-                  {saving ? "…" : "Save profile"}
-                </button>
+                {[
+                  ["crisis_helpline_visible", "Show crisis helplines in Chamber footer"],
+                  ["peer_support_circle_accessible", "Show peer support links"],
+                  ["ai_can_suggest_human_connection_when_distressed", "AI can suggest human connection when distressed"],
+                ].map(([key, label]) => (
+                  <label key={key} className="flex items-center gap-2 text-sm">
+                    <input
+                      type="checkbox"
+                      checked={safety[key] !== false}
+                      onChange={(e) => patchSafety(key, e.target.checked)}
+                      className="accent-[color:var(--primary)]"
+                    />
+                    {label}
+                  </label>
+                ))}
               </div>
             </section>
 
             <section className="nexus-card p-6">
-              <h2 className="mb-2 font-display text-lg font-semibold">Privacy</h2>
-              <p className="text-sm text-muted-foreground">Your Cortex is yours. Export anytime.</p>
-              <button onClick={exportData} className="mt-3 rounded-md border border-border bg-elevated px-4 py-2 text-sm hover:bg-elevated/70">
-                Download Cortex (JSON)
+              <h2 className="mb-2 font-display text-lg font-semibold">Content preferences</h2>
+              <div className="space-y-3">
+                <label className="flex items-center gap-2 text-sm">
+                  <input
+                    type="checkbox"
+                    checked={content.show_warnings !== false}
+                    onChange={(e) => patchContent("show_warnings", e.target.checked)}
+                    className="accent-[color:var(--primary)]"
+                  />
+                  Show content warnings before sensitive modules
+                </label>
+                <label className="flex items-center gap-2 text-sm">
+                  <input
+                    type="checkbox"
+                    checked={!!content.auto_skip_intense}
+                    onChange={(e) => patchContent("auto_skip_intense", e.target.checked)}
+                    className="accent-[color:var(--primary)]"
+                  />
+                  Auto-skip intense content
+                </label>
+                <label className="flex items-center gap-2 text-sm">
+                  <input
+                    type="checkbox"
+                    checked={content.pause_after_intense_content !== false}
+                    onChange={(e) => patchContent("pause_after_intense_content", e.target.checked)}
+                    className="accent-[color:var(--primary)]"
+                  />
+                  Suggest a pause after intense content
+                </label>
+              </div>
+            </section>
+
+            <section className="nexus-card p-6" id="sovereignty">
+              <h2 className="mb-2 font-display text-lg font-semibold">Sovereignty</h2>
+              <p className="text-sm text-muted-foreground">Your data. Your audit trail. Your choice.</p>
+              <button
+                onClick={exportData}
+                className="mt-3 rounded-md border border-border bg-elevated px-4 py-2 text-sm hover:bg-elevated/70"
+              >
+                Export all data (JSON)
               </button>
+              {auditLog.length > 0 && (
+                <div className="mt-4 max-h-48 overflow-y-auto rounded-md border border-border bg-elevated p-3">
+                  <p className="mb-2 text-[10px] uppercase tracking-wider text-muted-foreground">AI audit log</p>
+                  {auditLog.map((row: any) => (
+                    <p key={row.id} className="border-b border-border/40 py-1.5 text-xs text-muted-foreground last:border-0">
+                      {new Date(row.created_at).toLocaleString()} - {row.action_description}
+                    </p>
+                  ))}
+                </div>
+              )}
             </section>
 
-            <section className="nexus-card p-6">
-              <h2 className="mb-2 font-display text-lg font-semibold">Session</h2>
-              <button onClick={signOut} className="rounded-md border border-border bg-elevated px-4 py-2 text-sm hover:bg-elevated/70">Sign out</button>
-            </section>
+            {mhResources.length > 0 && (
+              <section className="nexus-card p-6">
+                <h2 className="mb-2 font-display text-lg font-semibold">Crisis resources</h2>
+                <ul className="space-y-2 text-sm">
+                  {mhResources.map((resource: any) => (
+                    <li key={resource.id}>
+                      <span className="font-medium">{resource.organisation}</span>
+                      <span className="text-muted-foreground"> - {resource.contact_info}</span>
+                    </li>
+                  ))}
+                </ul>
+              </section>
+            )}
+
+            <div className="flex gap-3">
+              <button
+                onClick={save}
+                disabled={saving}
+                className="rounded-md bg-primary px-5 py-2 text-sm font-medium text-primary-foreground hover:opacity-90 disabled:opacity-50"
+              >
+                {saving ? "…" : "Save settings"}
+              </button>
+              <button
+                onClick={signOut}
+                className="rounded-md border border-border bg-elevated px-4 py-2 text-sm hover:bg-elevated/70"
+              >
+                Sign out
+              </button>
+            </div>
           </>
         )}
 

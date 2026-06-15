@@ -1,0 +1,9 @@
+{
+  "name": "nexus-sandbox-mock-server",
+  "version": "1.0.0",
+  "description": "Mock API server for offline testing of NEXUS SDKs",
+  "main": "index.js",
+  "dependencies": {
+    "pg": "^8.11.0"
+  }
+}

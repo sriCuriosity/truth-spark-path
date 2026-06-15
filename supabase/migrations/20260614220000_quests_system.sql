@@ -44,10 +44,10 @@ create policy "submissions update own" on public.quest_submissions for update to
 -- Seed some initial quests
 insert into public.quests (title, description, competency_tags, difficulty, xp_reward, submission_type, is_published, created_by)
 select * from (values
-  ('First Perspective Shift', 'Document a time when your perspective changed fundamentally. What did you believe before? What do you believe now? What caused the shift?', ARRAY['epistemic_humility','critical_thinking'], 2, 50, 'text', true, null),
-  ('Real-World Application', 'Take something you learned and apply it to solve a real problem. Document the problem, your approach, and the outcome.', ARRAY['application','problem_solving'], 3, 100, 'project_url', true, null),
-  ('Teach Someone', 'Teach a concept you understand to someone else. Document how you explained it and what questions they asked.', ARRAY['communication','mastery'], 2, 75, 'text', true, null),
-  ('Deep Dive Research', 'Choose a topic and research it deeply from multiple perspectives. Create a synthesis that shows understanding of different viewpoints.', ARRAY['research','synthesis'], 4, 150, 'cortex_entry_id', true, null),
-  ('Build Something', 'Create something tangible - code, art, writing, a physical object. Document your process and what you learned.', ARRAY['creation','craft'], 3, 100, 'project_url', true, null)
+  ('First Perspective Shift', 'Document a time when your perspective changed fundamentally. What did you believe before? What do you believe now? What caused the shift?', ARRAY['epistemic_humility','critical_thinking'], 2, 50, 'text', true, null::uuid),
+  ('Real-World Application', 'Take something you learned and apply it to solve a real problem. Document the problem, your approach, and the outcome.', ARRAY['application','problem_solving'], 3, 100, 'project_url', true, null::uuid),
+  ('Teach Someone', 'Teach a concept you understand to someone else. Document how you explained it and what questions they asked.', ARRAY['communication','mastery'], 2, 75, 'text', true, null::uuid),
+  ('Deep Dive Research', 'Choose a topic and research it deeply from multiple perspectives. Create a synthesis that shows understanding of different viewpoints.', ARRAY['research','synthesis'], 4, 150, 'cortex_entry_id', true, null::uuid),
+  ('Build Something', 'Create something tangible - code, art, writing, a physical object. Document your process and what you learned.', ARRAY['creation','craft'], 3, 100, 'project_url', true, null::uuid)
 ) as v(title, description, competency_tags, difficulty, xp_reward, submission_type, is_published, created_by)
 where not exists (select 1 from public.quests q where q.title = v.title);

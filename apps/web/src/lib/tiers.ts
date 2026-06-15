@@ -15,6 +15,7 @@ export const XP_SOURCES = {
   evidence_attached: 5,
   peer_validation_received: 20,
   peer_validation_given: 15,
+  socratic_reflection: 2,
 } as const;
 
 export function tierForXp(xp: number): TierName {
@@ -66,12 +67,13 @@ export async function awardXp(
   const currentTier = tierForXp(totalXp);
   const tierChanged = currentTier !== previousTier;
 
-  await supabase.from("xp_ledger").insert({
+  await (supabase as any).from("xp_ledger").insert({
     user_id: userId,
     amount,
     source,
     reference_id: referenceId ?? null,
   });
+
 
   await supabase
     .from("profiles")
