@@ -25,6 +25,7 @@ import { Route as AuthenticatedGovernanceRouteImport } from './routes/_authentic
 import { Route as AuthenticatedDomainsRouteImport } from './routes/_authenticated/domains'
 import { Route as AuthenticatedDashboardRouteImport } from './routes/_authenticated/dashboard'
 import { Route as AuthenticatedCortexRouteImport } from './routes/_authenticated/cortex'
+import { Route as AuthenticatedConsentRouteImport } from './routes/_authenticated/consent'
 import { Route as AuthenticatedCommunityRouteImport } from './routes/_authenticated/community'
 import { Route as AuthenticatedCoachRouteImport } from './routes/_authenticated/coach'
 import { Route as AuthenticatedChamberRouteImport } from './routes/_authenticated/chamber'
@@ -118,6 +119,11 @@ const AuthenticatedCortexRoute = AuthenticatedCortexRouteImport.update({
   path: '/cortex',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
+const AuthenticatedConsentRoute = AuthenticatedConsentRouteImport.update({
+  id: '/consent',
+  path: '/consent',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
 const AuthenticatedCommunityRoute = AuthenticatedCommunityRouteImport.update({
   id: '/community',
   path: '/community',
@@ -196,6 +202,7 @@ export interface FileRoutesByFullPath {
   '/chamber': typeof AuthenticatedChamberRoute
   '/coach': typeof AuthenticatedCoachRoute
   '/community': typeof AuthenticatedCommunityRoute
+  '/consent': typeof AuthenticatedConsentRoute
   '/cortex': typeof AuthenticatedCortexRoute
   '/dashboard': typeof AuthenticatedDashboardRoute
   '/domains': typeof AuthenticatedDomainsRoute
@@ -225,6 +232,7 @@ export interface FileRoutesByTo {
   '/chamber': typeof AuthenticatedChamberRoute
   '/coach': typeof AuthenticatedCoachRoute
   '/community': typeof AuthenticatedCommunityRoute
+  '/consent': typeof AuthenticatedConsentRoute
   '/cortex': typeof AuthenticatedCortexRoute
   '/dashboard': typeof AuthenticatedDashboardRoute
   '/domains': typeof AuthenticatedDomainsRoute
@@ -256,6 +264,7 @@ export interface FileRoutesById {
   '/_authenticated/chamber': typeof AuthenticatedChamberRoute
   '/_authenticated/coach': typeof AuthenticatedCoachRoute
   '/_authenticated/community': typeof AuthenticatedCommunityRoute
+  '/_authenticated/consent': typeof AuthenticatedConsentRoute
   '/_authenticated/cortex': typeof AuthenticatedCortexRoute
   '/_authenticated/dashboard': typeof AuthenticatedDashboardRoute
   '/_authenticated/domains': typeof AuthenticatedDomainsRoute
@@ -287,6 +296,7 @@ export interface FileRouteTypes {
     | '/chamber'
     | '/coach'
     | '/community'
+    | '/consent'
     | '/cortex'
     | '/dashboard'
     | '/domains'
@@ -316,6 +326,7 @@ export interface FileRouteTypes {
     | '/chamber'
     | '/coach'
     | '/community'
+    | '/consent'
     | '/cortex'
     | '/dashboard'
     | '/domains'
@@ -346,6 +357,7 @@ export interface FileRouteTypes {
     | '/_authenticated/chamber'
     | '/_authenticated/coach'
     | '/_authenticated/community'
+    | '/_authenticated/consent'
     | '/_authenticated/cortex'
     | '/_authenticated/dashboard'
     | '/_authenticated/domains'
@@ -490,6 +502,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedCortexRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/consent': {
+      id: '/_authenticated/consent'
+      path: '/consent'
+      fullPath: '/consent'
+      preLoaderRoute: typeof AuthenticatedConsentRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/community': {
       id: '/_authenticated/community'
       path: '/community'
@@ -597,6 +616,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedChamberRoute: typeof AuthenticatedChamberRoute
   AuthenticatedCoachRoute: typeof AuthenticatedCoachRoute
   AuthenticatedCommunityRoute: typeof AuthenticatedCommunityRoute
+  AuthenticatedConsentRoute: typeof AuthenticatedConsentRoute
   AuthenticatedCortexRoute: typeof AuthenticatedCortexRoute
   AuthenticatedDashboardRoute: typeof AuthenticatedDashboardRoute
   AuthenticatedDomainsRoute: typeof AuthenticatedDomainsRoute
@@ -621,6 +641,7 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedChamberRoute: AuthenticatedChamberRoute,
   AuthenticatedCoachRoute: AuthenticatedCoachRoute,
   AuthenticatedCommunityRoute: AuthenticatedCommunityRoute,
+  AuthenticatedConsentRoute: AuthenticatedConsentRoute,
   AuthenticatedCortexRoute: AuthenticatedCortexRoute,
   AuthenticatedDashboardRoute: AuthenticatedDashboardRoute,
   AuthenticatedDomainsRoute: AuthenticatedDomainsRoute,

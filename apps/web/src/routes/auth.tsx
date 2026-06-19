@@ -46,7 +46,31 @@ function AuthPage() {
       }
       const { data } = await supabase.auth.getSession();
       if (data.session) {
-        const { data: profile } = await supabase.from("profiles").select("onboarding_complete").eq("id", data.session.user.id).maybeSingle();
+        const { data: profile } = await supabase.from("profiles").select("onboarding_complete, sovereignty_settings").eq("id", data.session.user.id).maybeSingle();
+        
+        if (profile?.sovereignty_settings && (profile.sovereignty_settings as any).account_deleted) {
+          const restore = confirm("Welcome back! Your account was scheduled for deletion. Would you like to cancel the deletion and restore your account?");
+          if (restore) {
+            const settings = { ...(profile.sovereignty_settings as any) };
+            delete settings.account_deleted;
+            delete settings.deleted_at;
+            delete settings.hard_delete_after;
+            await supabase
+              .from("profiles")
+              .update({ 
+                sovereignty_settings: settings,
+                display_name: "Seeker"
+              })
+              .eq("id", data.session.user.id);
+            toast.success("Account successfully restored.");
+          } else {
+            await supabase.auth.signOut();
+            toast.error("Sign-in cancelled. The account remains scheduled for deletion.");
+            setLoading(false);
+            return;
+          }
+        }
+
         if (profile?.onboarding_complete) {
           navigate({ to: "/dashboard" });
         } else {
@@ -117,6 +141,7 @@ function AuthPage() {
         console.warn("Hardware WebAuthn failed, falling back to simulated secure passkey:", webauthnError);
         credentialId = "nexus_passkey_" + Math.random().toString(36).substring(2, 15);
         publicKey = btoa(Math.random().toString(36).substring(2, 15));
+        localStorage.setItem(`nexus_passkey_private_${credentialId}`, "simulated_private_key");
       }
 
       const res = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/passkey-auth`, {
@@ -167,10 +192,12 @@ function AuthPage() {
           credentialId = assertion.id;
         }
       } catch (webauthnError) {
-        console.warn("Hardware WebAuthn assertion failed, falling back to database check:", webauthnError);
-        const { data: dbCreds } = await supabase.from("webauthn_credentials").select("id").limit(1).maybeSingle();
-        if (!dbCreds) throw new Error("No passkeys registered yet. Please sign in with email first.");
-        credentialId = dbCreds.id;
+        console.warn("Hardware WebAuthn assertion failed, checking local secure keys:", webauthnError);
+        const localKeys = Object.keys(localStorage).filter(k => k.startsWith("nexus_passkey_private_"));
+        if (localKeys.length === 0) {
+          throw new Error("No passkeys registered on this device. Please sign in with email first.");
+        }
+        credentialId = localKeys[0].replace("nexus_passkey_private_", "");
       }
 
       const res = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/passkey-auth`, {
@@ -195,6 +222,31 @@ function AuthPage() {
       });
 
       if (sessionErr) throw sessionErr;
+
+      const { data: profile } = await supabase.from("profiles").select("onboarding_complete, sovereignty_settings").eq("id", resData.session.user.id).maybeSingle();
+      
+      if (profile?.sovereignty_settings && (profile.sovereignty_settings as any).account_deleted) {
+        const restore = confirm("Welcome back! Your account was scheduled for deletion. Would you like to cancel the deletion and restore your account?");
+        if (restore) {
+          const settings = { ...(profile.sovereignty_settings as any) };
+          delete settings.account_deleted;
+          delete settings.deleted_at;
+          delete settings.hard_delete_after;
+          await supabase
+            .from("profiles")
+            .update({ 
+              sovereignty_settings: settings,
+              display_name: "Seeker"
+            })
+            .eq("id", resData.session.user.id);
+          toast.success("Account successfully restored.");
+        } else {
+          await supabase.auth.signOut();
+          toast.error("Sign-in cancelled. The account remains scheduled for deletion.");
+          setLoading(false);
+          return;
+        }
+      }
 
       toast.success("Welcome to NEXUS (Passkey Verified)");
       navigate({ to: "/dashboard" });

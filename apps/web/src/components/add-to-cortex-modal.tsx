@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { X } from "lucide-react";
+import { X, Paperclip, Link2, UploadCloud, Trash } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { ENTRY_TYPE_META, type EntryType } from "./cortex-entry-card";
@@ -27,10 +27,17 @@ export function AddToCortexModal({ open, onClose, onCreated }: { open: boolean; 
   const [analyzing, setAnalyzing] = useState(false);
   const [aiRelevance, setAiRelevance] = useState("");
 
+  // Evidence Attachments State
+  const [evidenceList, setEvidenceList] = useState<Array<{ title: string; url: string; evidence_type: 'link' | 'file'; file_key?: string }>>([]);
+  const [evidenceUrl, setEvidenceUrl] = useState("");
+  const [evidenceTitle, setEvidenceTitle] = useState("");
+  const [uploading, setUploading] = useState(false);
+
   function reset() {
     setType(null); setTitle(""); setBody(""); setDomains("");
     setPreviousBelief(""); setNewBelief(""); setWhatLearned("");
     setIsPublic(true); setHappenedAt(""); setAiRelevance("");
+    setEvidenceList([]); setEvidenceUrl(""); setEvidenceTitle("");
   }
 
   async function handleAIClassify() {
@@ -65,6 +72,73 @@ export function AddToCortexModal({ open, onClose, onCreated }: { open: boolean; 
     }
   }
 
+  async function handleFileUpload(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setUploading(true);
+    try {
+      const { data: u } = await supabase.auth.getUser();
+      if (!u.user) throw new Error("No active session");
+
+      const fileExt = file.name.split(".").pop();
+      const fileName = `${Math.random().toString(36).substring(2, 15)}_${Date.now()}.${fileExt}`;
+      const filePath = `${u.user.id}/${fileName}`;
+
+      const { data, error } = await supabase.storage
+        .from("cortex-evidence")
+        .upload(filePath, file);
+
+      if (error) {
+        console.warn("Storage upload failed, simulating fallback:", error);
+        const fallbackUrl = URL.createObjectURL(file);
+        setEvidenceList(prev => [...prev, {
+          title: file.name,
+          url: fallbackUrl,
+          evidence_type: "file",
+        }]);
+        toast.info("Mock upload succeeded (using local browser object fallback).");
+        return;
+      }
+
+      const { data: urlData } = supabase.storage
+        .from("cortex-evidence")
+        .getPublicUrl(filePath);
+
+      setEvidenceList(prev => [...prev, {
+        title: file.name,
+        url: urlData.publicUrl,
+        evidence_type: "file",
+        file_key: data.path,
+      }]);
+      toast.success("File uploaded and attached.");
+    } catch (err: any) {
+      toast.error(err.message ?? "Failed to upload file");
+    } finally {
+      setUploading(false);
+    }
+  }
+
+  function handleAddLink() {
+    if (!evidenceUrl.trim()) {
+      toast.error("Please enter a valid URL.");
+      return;
+    }
+    const titleToUse = evidenceTitle.trim() || evidenceUrl;
+    setEvidenceList(prev => [...prev, {
+      title: titleToUse,
+      url: evidenceUrl.trim(),
+      evidence_type: "link"
+    }]);
+    setEvidenceUrl("");
+    setEvidenceTitle("");
+    toast.success("Link evidence attached.");
+  }
+
+  function removeEvidence(idx: number) {
+    setEvidenceList(prev => prev.filter((_, i) => i !== idx));
+  }
+
   async function submit(e: React.FormEvent) {
     e.preventDefault();
     if (!type) return;
@@ -90,6 +164,21 @@ export function AddToCortexModal({ open, onClose, onCreated }: { open: boolean; 
       if (error) throw error;
 
       const entryData = edgeRes.data || edgeRes;
+
+      // Save evidence rows to cortex_evidence table
+      if (evidenceList.length > 0) {
+        const evidenceRows = evidenceList.map(ev => ({
+          entry_id: entryData.id,
+          user_id: u.user.id,
+          evidence_type: ev.evidence_type,
+          title: ev.title,
+          url: ev.url,
+          file_key: ev.file_key || null,
+        }));
+        const { error: evidenceError } = await supabase.from("cortex_evidence").insert(evidenceRows);
+        if (evidenceError) console.error("Error saving evidence:", evidenceError);
+      }
+
       trackSessionActivity("cortex_entry");
       const tierResult = await awardXp(u.user.id, "cortex_entry_created", entryData.id);
       toast.success("Added to your Cortex.");
@@ -184,6 +273,82 @@ export function AddToCortexModal({ open, onClose, onCreated }: { open: boolean; 
                       className="w-full resize-none rounded-md border border-border bg-elevated px-3 py-2.5 text-sm outline-none focus:border-primary" />
                   )}
                   
+                  {/* Evidence Attachments */}
+                  <div className="rounded-lg border border-border bg-background/30 p-4 space-y-3">
+                    <span className="text-[10px] font-mono uppercase tracking-wider text-muted-foreground flex items-center gap-1.5 font-semibold">
+                      <Paperclip className="h-3.5 w-3.5" /> Evidence Attachments
+                    </span>
+
+                    {/* Attached list */}
+                    {evidenceList.length > 0 && (
+                      <div className="space-y-1.5 max-h-36 overflow-y-auto">
+                        {evidenceList.map((ev, idx) => (
+                          <div key={idx} className="flex items-center justify-between rounded bg-elevated/55 border border-border/40 px-3 py-1.5 text-xs">
+                            <span className="truncate max-w-[280px] font-medium flex items-center gap-1.5">
+                              {ev.evidence_type === "file" ? <UploadCloud className="h-3.5 w-3.5 text-accent-teal" /> : <Link2 className="h-3.5 w-3.5 text-primary" />}
+                              {ev.title}
+                            </span>
+                            <button
+                              type="button"
+                              onClick={() => removeEvidence(idx)}
+                              className="text-muted-foreground hover:text-red-400 p-1 cursor-pointer"
+                            >
+                              <Trash className="h-3.5 w-3.5" />
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+
+                    {/* Adding mechanism */}
+                    <div className="grid gap-4 border-t border-border/30 pt-3 md:grid-cols-2">
+                      {/* URL input */}
+                      <div className="space-y-2">
+                        <span className="text-[10px] text-muted-foreground block font-medium">Attach Link</span>
+                        <input
+                          type="text"
+                          placeholder="Evidence title (optional)"
+                          value={evidenceTitle}
+                          onChange={(e) => setEvidenceTitle(e.target.value)}
+                          className="w-full rounded border border-border bg-elevated px-2.5 py-1.5 text-xs outline-none focus:border-primary"
+                        />
+                        <div className="flex gap-1.5">
+                          <input
+                            type="text"
+                            placeholder="https://..."
+                            value={evidenceUrl}
+                            onChange={(e) => setEvidenceUrl(e.target.value)}
+                            className="flex-1 rounded border border-border bg-elevated px-2.5 py-1.5 text-xs outline-none focus:border-primary"
+                          />
+                          <button
+                            type="button"
+                            onClick={handleAddLink}
+                            className="rounded bg-elevated border border-border px-3 py-1.5 text-xs hover:bg-elevated/70 cursor-pointer"
+                          >
+                            Add
+                          </button>
+                        </div>
+                      </div>
+
+                      {/* File upload */}
+                      <div className="space-y-2 flex flex-col justify-between">
+                        <span className="text-[10px] text-muted-foreground block font-medium">Upload File</span>
+                        <label className="flex flex-1 flex-col items-center justify-center rounded border border-dashed border-border/60 bg-elevated/35 hover:bg-elevated/65 hover:border-primary/40 cursor-pointer p-3 transition text-center min-h-[68px]">
+                          <UploadCloud className="h-5 w-5 text-muted-foreground" />
+                          <span className="text-[10px] text-muted-foreground mt-1 font-medium">
+                            {uploading ? "Uploading..." : "Choose PDF, image, doc"}
+                          </span>
+                          <input
+                            type="file"
+                            onChange={handleFileUpload}
+                            disabled={uploading}
+                            className="hidden"
+                          />
+                        </label>
+                      </div>
+                    </div>
+                  </div>
+
                   <div className="space-y-1">
                     <input placeholder="Domains (comma separated)" value={domains} onChange={(e) => setDomains(e.target.value)}
                       className="w-full rounded-md border border-border bg-elevated px-3 py-2.5 text-sm outline-none focus:border-primary" />

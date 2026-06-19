@@ -1,11 +1,12 @@
-import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { createFileRoute, useNavigate, Link } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Github, Youtube, Linkedin, BookOpen, Globe, Check, X, RefreshCw, Copy, AlertTriangle, Key, Trash2 } from "lucide-react";
+import { Github, Youtube, Linkedin, BookOpen, Globe, Check, X, RefreshCw, Copy, AlertTriangle, Key, Trash2, Shield } from "lucide-react";
 import { AppShell } from "@/components/app-shell";
 import { AIVoicePicker } from "@/components/ai-coach-panel";
 import { ApiTokenDisplay } from "@/components/api-token-display";
+import { PasskeyRegister } from "@/components/passkey-register";
 import { supabase } from "@/integrations/supabase/client";
 import type { AIVoiceId } from "@/lib/ai-voices";
 
@@ -456,20 +457,61 @@ function Settings() {
 
     const { data: u } = await supabase.auth.getUser();
     if (!u.user) return;
-    const [entries, checkins, achievements] = await Promise.all([
+
+    toast.info("Collecting all your sovereign data...");
+
+    const [
+      entries, 
+      evidence, 
+      perspectiveLinks, 
+      checkins, 
+      xpLedger, 
+      achievements, 
+      auditLogData, 
+      deprogramming, 
+      communityQs, 
+      questionResponses,
+      circleMemberships,
+      createdCircles,
+      circleMessages,
+      validations
+    ] = await Promise.all([
       supabase.from("cortex_entries").select("*").eq("user_id", u.user.id),
+      (supabase as any).from("cortex_evidence").select("*").in("entry_id", 
+        (await supabase.from("cortex_entries").select("id").eq("user_id", u.user.id)).data?.map((e: any) => e.id) ?? []
+      ),
+      (supabase as any).from("cortex_perspective_links").select("*").eq("user_id", u.user.id),
       supabase.from("wellbeing_checkins").select("*").eq("user_id", u.user.id),
-      supabase
-        .from("user_achievements")
-        .select("*, achievement:achievements(*)")
-        .eq("user_id", u.user.id),
+      (supabase as any).from("xp_ledger").select("*").eq("user_id", u.user.id),
+      supabase.from("user_achievements").select("*, achievement:achievements(*)").eq("user_id", u.user.id),
+      supabase.from("ai_audit_log").select("*").eq("user_id", u.user.id),
+      (supabase as any).from("deprogramming_progress").select("*").eq("user_id", u.user.id),
+      (supabase as any).from("community_questions").select("*").eq("user_id", u.user.id),
+      (supabase as any).from("question_responses").select("*").eq("user_id", u.user.id),
+      (supabase as any).from("learning_circle_members").select("*").eq("user_id", u.user.id),
+      (supabase as any).from("learning_circles").select("*").eq("created_by", u.user.id),
+      (supabase as any).from("circle_messages").select("*").eq("user_id", u.user.id),
+      (supabase as any).from("peer_validations").select("*").or(`validator_id.eq.${u.user.id},owner_id.eq.${u.user.id}`),
     ]);
 
     const payload = JSON.stringify(
       {
-        cortex: entries.data,
-        wellbeing: checkins.data,
+        exported_at: new Date().toISOString(),
+        user_id: u.user.id,
+        cortex_entries: entries.data,
+        cortex_evidence: evidence.data,
+        cortex_perspective_links: perspectiveLinks.data,
+        wellbeing_checkins: checkins.data,
+        xp_ledger: xpLedger.data,
         achievements: achievements.data,
+        ai_audit_log: auditLogData.data,
+        deprogramming_progress: deprogramming.data,
+        community_questions: communityQs.data,
+        question_responses: questionResponses.data,
+        learning_circle_memberships: circleMemberships.data,
+        created_learning_circles: createdCircles.data,
+        circle_messages: circleMessages.data,
+        peer_validations: validations.data,
       },
       null,
       2,
@@ -505,13 +547,54 @@ function Settings() {
       a.download = "nexus-sovereign-export.enc";
       a.click();
       URL.revokeObjectURL(url);
-      toast.success("Sovereign data exported and encrypted successfully!");
+      toast.success("Full sovereign data exported and encrypted successfully!");
     } catch (err: any) {
       console.error(err);
       toast.error("Failed to encrypt data.");
     }
   }
 
+  async function deleteAccount() {
+    const confirmation1 = confirm(
+      "⚠️ ACCOUNT DELETION\n\nThis will permanently schedule your account and all associated data for deletion.\n\n" +
+      "Your data will be held for 30 days in case you change your mind, then permanently erased.\n\n" +
+      "This action cannot be undone after 30 days.\n\nAre you sure you want to proceed?"
+    );
+    if (!confirmation1) return;
+
+    const typedConfirmation = prompt(
+      "Type DELETE MY ACCOUNT to confirm permanent account deletion:"
+    );
+    if (typedConfirmation !== "DELETE MY ACCOUNT") {
+      toast.error("Account deletion cancelled — confirmation text did not match.");
+      return;
+    }
+
+    try {
+      const { data: u } = await supabase.auth.getUser();
+      if (!u.user) return;
+
+      // Soft delete: mark profile as deleted with 30-day retention
+      const { error } = await supabase
+        .from("profiles")
+        .update({
+          display_name: "[Deleted User]",
+          handle: null,
+          bio: null,
+          avatar_url: null,
+          sovereignty_settings: { account_deleted: true, deleted_at: new Date().toISOString(), hard_delete_after: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString() },
+        })
+        .eq("id", u.user.id);
+
+      if (error) throw error;
+
+      await supabase.auth.signOut();
+      toast.success("Account scheduled for deletion. You have 30 days to sign back in and cancel.");
+      navigate({ to: "/auth", replace: true });
+    } catch (err: any) {
+      toast.error(err.message ?? "Failed to delete account");
+    }
+  }
 
   async function signOut() {
     await supabase.auth.signOut();
@@ -697,15 +780,36 @@ function Settings() {
               </div>
             </section>
 
+            <section className="nexus-card p-6" id="passkeys">
+              <PasskeyRegister />
+            </section>
+
             <section className="nexus-card p-6" id="sovereignty">
               <h2 className="mb-2 font-display text-lg font-semibold">Sovereignty</h2>
               <p className="text-sm text-muted-foreground">Your data. Your audit trail. Your choice.</p>
-              <button
-                onClick={exportData}
-                className="mt-3 rounded-md border border-border bg-elevated px-4 py-2 text-sm hover:bg-elevated/70"
-              >
-                Export all data (JSON)
-              </button>
+              <div className="mt-4 flex flex-wrap gap-3">
+                <Link
+                  to="/consent"
+                  className="rounded-md border border-primary/20 bg-primary/10 px-4 py-2 text-sm text-primary hover:bg-primary/20 flex items-center gap-2 transition"
+                >
+                  <Shield className="h-3.5 w-3.5" /> Manage Consent & Boundaries
+                </Link>
+                <button
+                  onClick={exportData}
+                  className="rounded-md border border-border bg-elevated px-4 py-2 text-sm hover:bg-elevated/70 flex items-center gap-2"
+                >
+                  <Copy className="h-3.5 w-3.5" /> Export all data (encrypted JSON)
+                </button>
+                <button
+                  onClick={deleteAccount}
+                  className="rounded-md border border-red-500/30 bg-red-500/10 px-4 py-2 text-sm text-red-400 hover:bg-red-500/20 flex items-center gap-2 transition"
+                >
+                  <Trash2 className="h-3.5 w-3.5" /> Delete my account
+                </button>
+              </div>
+              <p className="mt-2 text-[10px] text-muted-foreground">
+                Export includes: cortex entries, evidence, perspective links, wellbeing check-ins, XP ledger, achievements, AI audit log, deprogramming progress, community questions, and responses.
+              </p>
               {auditLog.length > 0 && (
                 <div className="mt-4 max-h-48 overflow-y-auto rounded-md border border-border bg-elevated p-3">
                   <p className="mb-2 text-[10px] uppercase tracking-wider text-muted-foreground">AI audit log</p>

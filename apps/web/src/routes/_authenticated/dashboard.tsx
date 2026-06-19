@@ -8,6 +8,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { AppShell } from "@/components/app-shell";
 import { CortexEntryCard, type CortexEntry } from "@/components/cortex-entry-card";
 import { AddToCortexModal } from "@/components/add-to-cortex-modal";
+import { TierUpgradeCelebration } from "@/components/tier-upgrade-celebration";
 import { checkAddictionPatterns } from "@/lib/anti-addiction";
 import { nextTier, shouldShowTier, tierProgress, type TierName } from "@/lib/tiers";
 
@@ -35,6 +36,9 @@ const STATUS_CLASSES: Record<string, string> = {
 
 function Dashboard() {
   const [addOpen, setAddOpen] = useState(false);
+  const [showCelebration, setShowCelebration] = useState(false);
+  const [celebrationNewTier, setCelebrationNewTier] = useState<TierName | null>(null);
+  const [celebrationPrevTier, setCelebrationPrevTier] = useState<TierName | null>(null);
 
   const { data: profile } = useQuery({
     queryKey: ["me-profile"],
@@ -45,6 +49,22 @@ function Dashboard() {
       return data;
     },
   });
+
+  useEffect(() => {
+    if (!profile) return;
+    const tier = (profile.current_tier ?? "seeker") as TierName;
+    const storedTier = localStorage.getItem("nexus_dashboard_last_tier") as TierName | null;
+
+    if (storedTier && storedTier !== tier) {
+      const tierIndex = (t: string) => TIERS.indexOf(t);
+      if (tierIndex(tier) > tierIndex(storedTier)) {
+        setCelebrationPrevTier(storedTier);
+        setCelebrationNewTier(tier);
+        setShowCelebration(true);
+      }
+    }
+    localStorage.setItem("nexus_dashboard_last_tier", tier);
+  }, [profile?.current_tier]);
 
   useEffect(() => {
     if (!profile?.id) return;
@@ -103,6 +123,16 @@ function Dashboard() {
     },
   });
 
+  const { data: contribution } = useQuery({
+    queryKey: ["my-contribution-score"],
+    queryFn: async () => {
+      const { data: u } = await supabase.auth.getUser();
+      if (!u.user) return null;
+      const { data } = await supabase.from("contribution_score").select("*").eq("user_id", u.user.id).maybeSingle();
+      return data;
+    },
+  });
+
   const currentTier = (profile?.current_tier ?? "seeker") as TierName;
   const totalXp = (profile as { total_xp?: number })?.total_xp ?? 0;
   const nxt = nextTier(currentTier);
@@ -143,6 +173,28 @@ function Dashboard() {
             </div>
           )}
 
+          {/* Peer Contribution & Validation Score */}
+          <div className="nexus-card p-5 space-y-4">
+            <div>
+              <p className="text-xs uppercase tracking-wider text-muted-foreground flex items-center gap-1.5 font-semibold">
+                <Layers className="h-3.5 w-3.5 text-primary" /> Contribution Score
+              </p>
+              <p className="text-2xl font-bold font-mono mt-1 text-foreground">
+                {contribution?.contribution_xp ?? 0} <span className="text-xs text-muted-foreground font-sans font-normal">XP from peer contributions</span>
+              </p>
+            </div>
+            <div className="grid grid-cols-2 gap-2 text-xs">
+              <div className="rounded border border-border bg-elevated/40 p-2.5">
+                <span className="text-muted-foreground block text-[10px] uppercase font-semibold">Validations Given</span>
+                <span className="text-base font-bold font-mono text-primary mt-0.5 block">{contribution?.validations_given ?? 0}</span>
+              </div>
+              <div className="rounded border border-border bg-elevated/40 p-2.5">
+                <span className="text-muted-foreground block text-[10px] uppercase font-semibold">Validations Recv</span>
+                <span className="text-base font-bold font-mono text-accent-teal mt-0.5 block">{contribution?.validations_received ?? 0}</span>
+              </div>
+            </div>
+          </div>
+
           {showTier && (
             <div className="nexus-card p-5">
               <div className="flex items-center justify-between">
@@ -151,6 +203,11 @@ function Dashboard() {
               </div>
               <div className="mt-3 flex items-center gap-4">
                 <div className="relative grid h-16 w-16 place-items-center">
+                  <motion.div
+                    className="absolute inset-0 rounded-full border border-primary/40"
+                    animate={{ scale: [1, 1.25, 1], opacity: [0.6, 0, 0.6] }}
+                    transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
+                  />
                   <svg viewBox="0 0 36 36" className="absolute inset-0">
                     <circle cx="18" cy="18" r="15" fill="none" stroke="var(--border)" strokeWidth="2.5" />
                     <circle cx="18" cy="18" r="15" fill="none" stroke="var(--primary)" strokeWidth="2.5"
@@ -275,6 +332,13 @@ function Dashboard() {
       </div>
 
       <AddToCortexModal open={addOpen} onClose={() => setAddOpen(false)} onCreated={() => refetchEntries()} />
+      {showCelebration && celebrationPrevTier && celebrationNewTier && (
+        <TierUpgradeCelebration
+          previousTier={celebrationPrevTier}
+          newTier={celebrationNewTier}
+          onDismiss={() => setShowCelebration(false)}
+        />
+      )}
     </AppShell>
   );
 }

@@ -1,12 +1,12 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { LineChart, Line, XAxis, YAxis, ResponsiveContainer, Tooltip, Legend, CartesianGrid } from "recharts";
+import { LineChart, Line, BarChart, Bar, XAxis, YAxis, ResponsiveContainer, Tooltip, Legend, CartesianGrid, Cell } from "recharts";
 import { toast } from "sonner";
 import { AppShell } from "@/components/app-shell";
 import { EmotionWheel } from "@/components/emotion-wheel";
 import { supabase } from "@/integrations/supabase/client";
-import { Play, Timer, Sparkles, Brain, Award } from "lucide-react";
+import { Play, Timer, Sparkles, Brain, Award, Activity, Heart, ShieldAlert, Zap } from "lucide-react";
 import { awardXp } from "@/lib/tiers";
 
 export const Route = createFileRoute("/_authenticated/wellbeing")({
@@ -57,6 +57,7 @@ async function getDailyLogs(): Promise<any[]> {
 }
 
 function Wellbeing() {
+  const [activeWellbeingTab, setActiveWellbeingTab] = useState<"checkin" | "rhythm">("checkin");
   const [emotion, setEmotion] = useState<string | null>(null);
   const [energy, setEnergy] = useState(6);
   const [note, setNote] = useState("");
@@ -71,6 +72,9 @@ function Wellbeing() {
   const [secondsLeft, setSecondsLeft] = useState(60);
   const [breathPhase, setBreathPhase] = useState<"inhale" | "hold" | "exhale">("inhale");
   const [breakAwarded, setBreakAwarded] = useState(false);
+  const [breaksCompleted, setBreaksCompleted] = useState(() => {
+    return Number(localStorage.getItem("nexus_somatic_breaks_completed") || "0");
+  });
 
   // Active session timer
   const [sessionTime, setSessionTime] = useState(0); // in seconds
@@ -81,7 +85,12 @@ function Wellbeing() {
     queryFn: async () => {
       const { data: u } = await supabase.auth.getUser();
       if (!u.user) return [];
-      const { data } = await supabase.from("wellbeing_checkins").select("*").eq("user_id", u.user.id).order("created_at", { ascending: false }).limit(50);
+      const { data } = await supabase
+        .from("wellbeing_checkins")
+        .select("*")
+        .eq("user_id", u.user.id)
+        .order("created_at", { ascending: false })
+        .limit(50);
       return data ?? [];
     },
   });
@@ -153,6 +162,11 @@ function Wellbeing() {
         // Award XP for somatic break
         await awardXp(u.user.id, "evidence_attached"); // Use evidence_attached (5 XP) as a delegate
         toast.success("Somatic pause completed. +5 XP added to your Cortex.");
+        
+        // Increment somatic breaks completed count
+        const nextVal = breaksCompleted + 1;
+        setBreaksCompleted(nextVal);
+        localStorage.setItem("nexus_somatic_breaks_completed", String(nextVal));
       }
     } catch (err) {
       console.error(err);
@@ -257,22 +271,72 @@ function Wellbeing() {
   const minToBreak = Math.floor(secondsToBreak / 60);
   const secToBreak = secondsToBreak % 60;
 
+  // Life Rhythm Stats Calculation
+  const rhythmStats = useMemo(() => {
+    if (checkins.length === 0) return null;
+
+    const dayNames = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+    const energySums = new Array(7).fill(0);
+    const energyCounts = new Array(7).fill(0);
+    
+    checkins.forEach((c: any) => {
+      const day = new Date(c.created_at).getDay();
+      if (c.energy_level !== null) {
+        energySums[day] += c.energy_level;
+        energyCounts[day] += 1;
+      }
+    });
+
+    const dayData = dayNames.map((name, i) => {
+      const count = energyCounts[i];
+      return {
+        name: name.slice(0, 3),
+        avgEnergy: count > 0 ? Math.round((energySums[i] / count) * 10) / 10 : 0,
+        count
+      };
+    });
+
+    // Find highest energy day
+    let peakDay = "";
+    let peakVal = 0;
+    dayData.forEach(d => {
+      if (d.avgEnergy > peakVal) {
+        peakVal = d.avgEnergy;
+        peakDay = d.name;
+      }
+    });
+
+    // Calculate energy-cortex correlation narrative
+    const entriesCount = last7.reduce((sum, current) => sum + current.entries, 0);
+    const avgEnergyLast7 = last7.length > 0 
+      ? Math.round((last7.reduce((sum, current) => sum + current.energy, 0) / last7.length) * 10) / 10 
+      : 5;
+
+    return {
+      dayData,
+      peakDay: peakDay || "No Peak",
+      peakVal,
+      entriesCount,
+      avgEnergyLast7
+    };
+  }, [checkins, last7]);
+
   return (
     <AppShell title="Wellbeing Pulse">
       {/* Contemplation Mode Break Reminder Trigger Panel */}
-      <div className="mb-6 rounded-xl border border-accent-teal/30 bg-elevated/40 p-5 flex flex-col sm:flex-row justify-between items-center gap-4 glow-teal">
+      <div className="mb-4 rounded-xl border border-accent-teal/30 bg-elevated/40 p-5 flex flex-col sm:flex-row justify-between items-center gap-4 glow-teal">
         <div className="flex items-center gap-3">
           <div className="grid h-10 w-10 place-items-center rounded-lg bg-accent-teal/20 text-accent-teal">
             <Timer className="h-5 w-5 animate-pulse" />
           </div>
           <div>
             <h4 className="font-display font-semibold text-sm">Somatic Contemplation Tracker</h4>
-            <p className="text-xs text-muted-foreground">Session duration active. Pauses reinforce cognitive integration.</p>
+            <p className="text-xs text-muted-foreground font-sans">Session duration active. Pauses reinforce cognitive integration.</p>
           </div>
         </div>
         <div className="flex items-center gap-4">
           <div className="text-right">
-            <span className="text-xs text-muted-foreground block">Next Break In</span>
+            <span className="text-xs text-muted-foreground block font-mono">Next Break In</span>
             <span className="font-mono text-sm text-accent-teal font-bold">{minToBreak}m {secToBreak}s</span>
           </div>
           <button
@@ -284,82 +348,212 @@ function Wellbeing() {
         </div>
       </div>
 
-      <div className="grid gap-6 lg:grid-cols-[1fr_1fr]">
-        <div className="nexus-card p-6">
-          <h2 className="mb-1 font-display text-lg font-semibold">How are you, actually?</h2>
-          <p className="mb-6 text-sm text-muted-foreground">NEXUS learns your rhythms. No judgement.</p>
-          <div className="grid items-center gap-6 md:grid-cols-2">
-            <EmotionWheel selected={emotion} onSelect={setEmotion} size={240} />
-            <div>
-              <label className="block">
-                <div className="flex items-center justify-between text-sm">
-                  <span className="text-muted-foreground">Energy</span>
-                  <span className="font-mono">{energy}/10</span>
+      {/* Tab Switcher */}
+      <div className="flex gap-2 mb-4 border-b border-border/40 pb-2">
+        <button
+          onClick={() => setActiveWellbeingTab("checkin")}
+          className={`flex items-center gap-1.5 px-4 py-2 text-sm font-medium rounded-md transition ${
+            activeWellbeingTab === "checkin" ? "bg-primary text-primary-foreground font-semibold" : "text-muted-foreground hover:text-foreground hover:bg-elevated/40"
+          }`}
+        >
+          <Activity className="h-4 w-4" /> Pulse Check-In
+        </button>
+        <button
+          onClick={() => setActiveWellbeingTab("rhythm")}
+          className={`flex items-center gap-1.5 px-4 py-2 text-sm font-medium rounded-md transition ${
+            activeWellbeingTab === "rhythm" ? "bg-primary text-primary-foreground font-semibold" : "text-muted-foreground hover:text-foreground hover:bg-elevated/40"
+          }`}
+        >
+          <Heart className="h-4 w-4" /> Life Rhythm Dashboard
+        </button>
+      </div>
+
+      {activeWellbeingTab === "checkin" ? (
+        <div className="space-y-6">
+          <div className="grid gap-6 lg:grid-cols-[1fr_1fr]">
+            <div className="nexus-card p-6">
+              <h2 className="mb-1 font-display text-lg font-semibold">How are you, actually?</h2>
+              <p className="mb-6 text-sm text-muted-foreground font-sans">NEXUS learns your rhythms. No judgement.</p>
+              <div className="grid items-center gap-6 md:grid-cols-2">
+                <EmotionWheel selected={emotion} onSelect={setEmotion} size={240} />
+                <div>
+                  <label className="block">
+                    <div className="flex items-center justify-between text-sm">
+                      <span className="text-muted-foreground">Energy</span>
+                      <span className="font-mono font-semibold">{energy}/10</span>
+                    </div>
+                    <input type="range" min={1} max={10} value={energy} onChange={(e) => setEnergy(Number(e.target.value))} className="mt-2 w-full accent-[color:var(--primary)]" />
+                  </label>
+                  <textarea rows={3} value={note} onChange={(e) => setNote(e.target.value)} placeholder="Body note (optional)"
+                    className="mt-4 w-full resize-none rounded-md border border-border bg-elevated px-3 py-2 text-sm outline-none focus:border-primary text-foreground" />
+                  <button onClick={submit} disabled={saving} className="mt-3 w-full rounded-md bg-primary py-2.5 text-sm font-semibold text-primary-foreground hover:opacity-90 disabled:opacity-50 transition">
+                    {saving ? "…" : "Save check-in"}
+                  </button>
                 </div>
-                <input type="range" min={1} max={10} value={energy} onChange={(e) => setEnergy(Number(e.target.value))} className="mt-2 w-full accent-[color:var(--primary)]" />
-              </label>
-              <textarea rows={3} value={note} onChange={(e) => setNote(e.target.value)} placeholder="Body note (optional)"
-                className="mt-4 w-full resize-none rounded-md border border-border bg-elevated px-3 py-2 text-sm outline-none focus:border-primary" />
-              <button onClick={submit} disabled={saving} className="mt-3 w-full rounded-md bg-primary py-2.5 text-sm font-medium text-primary-foreground hover:opacity-90 disabled:opacity-50">
-                {saving ? "…" : "Save check-in"}
-              </button>
+              </div>
+            </div>
+
+            {/* Local IndexedDB daily correlations log chart */}
+            <div className="nexus-card p-6 flex flex-col justify-between">
+              <div>
+                <h3 className="mb-1 font-display text-base font-semibold">IndexedDB Correlation Logs</h3>
+                <p className="text-xs text-muted-foreground mb-4 font-sans">Correlation between your somatic energy and cortex creation output.</p>
+              </div>
+              <div className="flex-1 h-[200px]">
+                {last7.length === 0 ? (
+                  <div className="h-full flex items-center justify-center text-xs text-muted-foreground italic">
+                    Collecting data. Complete wellbeing check-ins and add cortex entries to start correlating logs.
+                  </div>
+                ) : (
+                  <ResponsiveContainer width="100%" height="100%">
+                    <LineChart data={last7} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                      <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" opacity={0.3} />
+                      <XAxis dataKey="day" stroke="var(--muted-foreground)" fontSize={10} axisLine={false} tickLine={false} />
+                      <YAxis yAxisId="left" domain={[1, 10]} stroke="var(--accent-teal)" fontSize={10} axisLine={false} tickLine={false} />
+                      <YAxis yAxisId="right" orientation="right" domain={[0, 'auto']} stroke="var(--primary)" fontSize={10} axisLine={false} tickLine={false} />
+                      <Tooltip contentStyle={{ background: "var(--surface)", border: "1px solid var(--border)", borderRadius: 8 }} />
+                      <Legend verticalAlign="top" height={36} iconSize={10} fontSize={11} />
+                      <Line yAxisId="left" type="monotone" name="Avg Energy (IndexedDB)" dataKey="energy" stroke="var(--accent-teal)" strokeWidth={2.5} dot={{ fill: "var(--accent-teal)", r: 3 }} />
+                      <Line yAxisId="right" type="monotone" name="Cortex Submissions" dataKey="entries" stroke="var(--primary)" strokeWidth={2.5} dot={{ fill: "var(--primary)", r: 3 }} />
+                    </LineChart>
+                  </ResponsiveContainer>
+                )}
+              </div>
             </div>
           </div>
-        </div>
 
-        {/* Local IndexedDB daily correlations log chart */}
-        <div className="nexus-card p-6 flex flex-col justify-between">
-          <div>
-            <h3 className="mb-1 font-display text-base font-semibold">IndexedDB Correlation Logs</h3>
-            <p className="text-xs text-muted-foreground mb-4">Correlation between your somatic energy and cortex creation output.</p>
-          </div>
-          <div className="flex-1 h-[200px]">
-            {last7.length === 0 ? (
-              <div className="h-full flex items-center justify-center text-xs text-muted-foreground">
-                Collecting data. Complete wellbeing check-ins and add cortex entries to start correlating logs.
-              </div>
+          <div className="nexus-card p-6">
+            <h3 className="mb-4 font-display text-base font-semibold">Check-in History</h3>
+            {checkins.length === 0 ? (
+              <p className="text-sm text-muted-foreground italic">No check-ins yet.</p>
             ) : (
-              <ResponsiveContainer width="100%" height="100%">
-                <LineChart data={last7} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" opacity={0.3} />
-                  <XAxis dataKey="day" stroke="var(--muted-foreground)" fontSize={10} axisLine={false} tickLine={false} />
-                  <YAxis yAxisId="left" domain={[1, 10]} stroke="var(--accent-teal)" fontSize={10} axisLine={false} tickLine={false} />
-                  <YAxis yAxisId="right" orientation="right" domain={[0, 'auto']} stroke="var(--primary)" fontSize={10} axisLine={false} tickLine={false} />
-                  <Tooltip contentStyle={{ background: "var(--surface)", border: "1px solid var(--border)", borderRadius: 8 }} />
-                  <Legend verticalAlign="top" height={36} iconSize={10} fontSize={11} />
-                  <Line yAxisId="left" type="monotone" name="Avg Energy (IndexedDB)" dataKey="energy" stroke="var(--accent-teal)" strokeWidth={2.5} dot={{ fill: "var(--accent-teal)", r: 3 }} />
-                  <Line yAxisId="right" type="monotone" name="Cortex Submissions" dataKey="entries" stroke="var(--primary)" strokeWidth={2.5} dot={{ fill: "var(--primary)", r: 3 }} />
-                </LineChart>
-              </ResponsiveContainer>
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead className="border-b border-border text-left text-[11px] uppercase tracking-wider text-muted-foreground font-mono">
+                    <tr><th className="pb-2">Date</th><th>Emotion</th><th>Energy</th><th>Note</th></tr>
+                  </thead>
+                  <tbody>
+                    {(checkins as any[]).map(c => (
+                      <tr key={c.id} className="border-b border-border/50">
+                        <td className="py-2.5 text-muted-foreground font-sans text-xs">{new Date(c.created_at).toLocaleString()}</td>
+                        <td><span className="chip text-xs">{c.emotion}</span></td>
+                        <td className="font-mono text-xs">{c.energy_level}/10</td>
+                        <td className="text-muted-foreground text-xs font-sans">{c.body_note ?? "—"}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
             )}
           </div>
         </div>
-      </div>
+      ) : (
+        /* Life Rhythm Tab: Detailed Weekly Pattern Analysis */
+        <div className="space-y-6">
+          <div className="grid gap-6 md:grid-cols-3">
+            {/* Metric 1 */}
+            <div className="nexus-card p-5 space-y-2 border-accent-teal/20 bg-elevated/20">
+              <div className="flex items-center justify-between">
+                <span className="text-[11px] uppercase font-mono tracking-wider text-muted-foreground">Somatic Peak</span>
+                <Sparkles className="h-4 w-4 text-accent-teal" />
+              </div>
+              <p className="text-2xl font-bold tracking-tight text-foreground font-display">
+                {rhythmStats ? `${rhythmStats.peakDay} (${rhythmStats.peakVal}/10)` : "—"}
+              </p>
+              <p className="text-xs text-muted-foreground font-sans">
+                Day of the week showing your highest self-reported energy levels.
+              </p>
+            </div>
 
-      <div className="mt-6 nexus-card p-6">
-        <h3 className="mb-4 font-display text-base font-semibold">History</h3>
-        {checkins.length === 0 ? (
-          <p className="text-sm text-muted-foreground">No check-ins yet.</p>
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead className="border-b border-border text-left text-[11px] uppercase tracking-wider text-muted-foreground">
-                <tr><th className="pb-2">Date</th><th>Emotion</th><th>Energy</th><th>Note</th></tr>
-              </thead>
-              <tbody>
-                {(checkins as any[]).map(c => (
-                  <tr key={c.id} className="border-b border-border/50">
-                    <td className="py-2.5 text-muted-foreground">{new Date(c.created_at).toLocaleString()}</td>
-                    <td><span className="chip">{c.emotion}</span></td>
-                    <td className="font-mono">{c.energy_level}/10</td>
-                    <td className="text-muted-foreground">{c.body_note ?? "—"}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+            {/* Metric 2 */}
+            <div className="nexus-card p-5 space-y-2 border-primary/20 bg-elevated/20">
+              <div className="flex items-center justify-between">
+                <span className="text-[11px] uppercase font-mono tracking-wider text-muted-foreground">Focus Volume</span>
+                <Zap className="h-4 w-4 text-primary" />
+              </div>
+              <p className="text-2xl font-bold tracking-tight text-foreground font-display">
+                {rhythmStats ? `${rhythmStats.entriesCount} entries` : "—"}
+              </p>
+              <p className="text-xs text-muted-foreground font-sans">
+                Cortex entries documented over the active 7-day window.
+              </p>
+            </div>
+
+            {/* Metric 3 */}
+            <div className="nexus-card p-5 space-y-2 border-accent-pink/20 bg-elevated/20">
+              <div className="flex items-center justify-between">
+                <span className="text-[11px] uppercase font-mono tracking-wider text-muted-foreground">Somatic Breaks</span>
+                <Award className="h-4 w-4 text-accent-pink" />
+              </div>
+              <p className="text-2xl font-bold tracking-tight text-foreground font-display">
+                {breaksCompleted} paused
+              </p>
+              <p className="text-xs text-muted-foreground font-sans">
+                Completed somatic pauses logged in local browser memory.
+              </p>
+            </div>
           </div>
-        )}
-      </div>
+
+          <div className="grid gap-6 lg:grid-cols-[1.5fr_1fr]">
+            {/* Day of Week energy levels chart */}
+            <div className="nexus-card p-6 space-y-4">
+              <div>
+                <h3 className="font-display text-base font-semibold">Weekly Somatic Rhythms</h3>
+                <p className="text-xs text-muted-foreground font-sans">Average self-reported energy levels sorted by day of the week.</p>
+              </div>
+              <div className="h-[250px] w-full">
+                {rhythmStats && rhythmStats.totalCheckins > 0 ? (
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart data={rhythmStats.dayData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                      <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" opacity={0.2} />
+                      <XAxis dataKey="name" stroke="var(--muted-foreground)" fontSize={10} axisLine={false} tickLine={false} />
+                      <YAxis domain={[0, 10]} stroke="var(--muted-foreground)" fontSize={10} axisLine={false} tickLine={false} />
+                      <Tooltip contentStyle={{ background: "var(--surface)", border: "1px solid var(--border)", borderRadius: 8 }} />
+                      <Bar dataKey="avgEnergy" radius={[4, 4, 0, 0]}>
+                        {rhythmStats.dayData.map((entry, index) => (
+                          <Cell 
+                            key={`cell-${index}`} 
+                            fill={entry.avgEnergy === rhythmStats.peakVal ? "var(--accent-teal)" : "var(--primary)"} 
+                            opacity={entry.avgEnergy > 0 ? 0.85 : 0.2}
+                          />
+                        ))}
+                      </Bar>
+                    </BarChart>
+                  </ResponsiveContainer>
+                ) : (
+                  <div className="h-full flex items-center justify-center text-xs text-muted-foreground italic">
+                    Not enough check-in data to compile weekly somatic rhythm.
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Pattern analysis narrative card */}
+            <div className="nexus-card p-6 flex flex-col justify-between border-border/40 bg-surface/30">
+              <div>
+                <div className="flex items-center gap-1.5 text-accent-amber mb-3">
+                  <ShieldAlert className="h-4.5 w-4.5" />
+                  <h4 className="font-display font-semibold text-sm">Somatic Balance Analysis</h4>
+                </div>
+                <div className="text-xs text-muted-foreground space-y-3 font-sans leading-relaxed">
+                  <p>
+                    <strong>Cognitive Grounding:</strong> Your active logs show a correlation between self-reported somatic energy and Cortex creation rates. Periods of lower energy align with reduced documentation density, highlighting the importance of pacing.
+                  </p>
+                  <p>
+                    <strong>Epistemic Load Sync:</strong> Peak energy points typically coincide with high integration windows. Standard compliance patterns emphasize continuous compliance outputs; NEXUS self-observation suggests that respecting energy drops maintains systemic critical capacity.
+                  </p>
+                  <p>
+                    <strong>Contemplative Recovery:</strong> You have executed <span className="text-foreground font-semibold">{breaksCompleted} somatic break(s)</span>. Each break shifts your autonomic state away from mechanical task compliance, keeping baseline focus stable without significant collapse trends.
+                  </p>
+                </div>
+              </div>
+              <div className="border-t border-border/40 pt-3 mt-4 text-[10px] text-muted-foreground/80 font-mono italic">
+                *Advisory observations only. NEXUS avoids diagnostic claims, prioritizing autonomous self-regulation.
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Contemplation breathing overlay modal */}
       {showBreakModal && (
@@ -387,7 +581,7 @@ function Wellbeing() {
             </div>
 
             <div className="nexus-card p-5 border-accent-teal/20 bg-elevated/40 text-left">
-              <p className="text-xs leading-relaxed text-muted-foreground">
+              <p className="text-xs leading-relaxed text-muted-foreground font-sans">
                 Traditional education drills physical compliance by demanding long focus loops that reduce critical cognitive resistance. NEXUS inverts this by forcing contemplation periods. Resetting somatic rhythm restores truth-seeking capacity.
               </p>
             </div>
@@ -402,7 +596,7 @@ function Wellbeing() {
                     setShowBreakModal(false);
                     setBreakAwarded(false);
                   }}
-                  className="w-full py-2.5 rounded-md bg-accent-teal text-black font-semibold text-sm"
+                  className="w-full py-2.5 rounded-md bg-accent-teal text-black font-semibold text-sm hover:opacity-90 transition"
                 >
                   Return to NEXUS
                 </button>
@@ -424,4 +618,3 @@ function Wellbeing() {
     </AppShell>
   );
 }
-

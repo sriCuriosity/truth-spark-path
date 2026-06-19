@@ -89,6 +89,27 @@ function Onboarding() {
       if (p?.onboarding_complete) navigate({ to: "/dashboard" });
       if (p?.display_name) setDisplayName(p.display_name);
       if (p?.handle) setHandle(p.handle);
+
+      // Check for existing deprogramming progress to support resume
+      const { data: progress } = await (supabase as any)
+        .from("deprogramming_progress")
+        .select("module_id")
+        .eq("user_id", data.user.id)
+        .order("module_id", { ascending: true });
+
+      if (progress && progress.length > 0) {
+        // User has started deprogramming — resume from next incomplete module
+        const completedModules = progress.map((p: any) => p.module_id);
+        const nextIncomplete = DEPROGRAM_MODULES.findIndex(m => !completedModules.includes(m.id));
+        if (nextIncomplete >= 0) {
+          setPhase("deprogram");
+          setActiveModuleIdx(nextIncomplete);
+        } else if (progress.length >= DEPROGRAM_MODULES.length) {
+          // All modules completed — but profile not marked done (edge case)
+          setPhase("deprogram");
+          setActiveModuleIdx(DEPROGRAM_MODULES.length - 1);
+        }
+      }
     });
   }, [navigate]);
 
@@ -147,16 +168,25 @@ function Onboarding() {
       const activeModule = DEPROGRAM_MODULES[activeModuleIdx];
 
       // Insert into cortex_entries
-      const { error } = await supabase.from("cortex_entries").insert({
+      const { data: entryData, error } = await supabase.from("cortex_entries").insert({
         user_id: u.user.id,
         entry_type: "perspective_shift",
         title: `${activeModule.title}: ${evidenceTitle}`,
         body: evidenceBody,
         domains: [activeModule.domain],
         is_public: false,
-      });
+      }).select("id").single();
 
       if (error) throw error;
+
+      // Track deprogramming progress
+      await (supabase as any).from("deprogramming_progress").upsert({
+        user_id: u.user.id,
+        module_id: activeModule.id,
+        cortex_entry_id: entryData?.id ?? null,
+        reflection_text: null, // Will be filled on reflection step
+        completed_at: new Date().toISOString(),
+      }, { onConflict: "user_id,module_id" });
 
       // Award XP
       await supabase.from("xp_ledger").insert({
@@ -179,12 +209,17 @@ function Onboarding() {
     const { data: u } = await supabase.auth.getUser();
     if (!u.user) return;
 
-    // Save reflection to chamber (encrypted private space)
+    // Save reflection to chamber (encrypted private space) and update deprogramming progress
     if (reflectionText.trim()) {
       await supabase.from("chamber_entries").insert({
         user_id: u.user.id,
         content: `Reflective Sink (${DEPROGRAM_MODULES[activeModuleIdx].title}): ${reflectionText}`,
       });
+
+      // Update deprogramming_progress with reflection text
+      await (supabase as any).from("deprogramming_progress").update({
+        reflection_text: reflectionText,
+      }).eq("user_id", u.user.id).eq("module_id", DEPROGRAM_MODULES[activeModuleIdx].id);
     }
 
     if (activeModuleIdx < DEPROGRAM_MODULES.length - 1) {

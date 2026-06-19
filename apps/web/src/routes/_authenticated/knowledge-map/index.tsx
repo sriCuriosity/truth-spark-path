@@ -37,6 +37,18 @@ function KnowledgeMap() {
     },
   });
 
+   const { data: linkEntries = [], isLoading: isLinksLoading } = useQuery({
+    queryKey: ["all-perspective-links", profile?.id],
+    enabled: !!profile?.id,
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("cortex_perspective_links")
+        .select("id, source_entry_id, target_entry_id, link_type")
+        .eq("user_id", profile?.id);
+      return data ?? [];
+    },
+  });
+
   const currentTier = profile?.current_tier ?? "seeker";
   const totalXp = profile?.total_xp ?? 0;
   const isLocked = currentTier === "seeker" || currentTier === "explorer";
@@ -52,24 +64,13 @@ function KnowledgeMap() {
       domains: entry.domains,
       val: entry.impact_count || 1,
     })),
-    links: [] as any[],
+    links: linkEntries.map((link: any) => ({
+      source: link.source_entry_id,
+      target: link.target_entry_id,
+      label: link.link_type,
+      value: 2,
+    })),
   };
-
-  // Add some example connections based on shared domains
-  entries.forEach((entry: any, i: number) => {
-    if (i > 0 && entry.domains && entries[i - 1].domains) {
-      const sharedDomains = entry.domains.filter((d: string) => 
-        entries[i - 1].domains.includes(d)
-      );
-      if (sharedDomains.length > 0) {
-        graphData.links.push({
-          source: entries[i - 1].id,
-          target: entry.id,
-          value: sharedDomains.length,
-        });
-      }
-    }
-  });
 
   return (
     <AppShell title="Knowledge Map">

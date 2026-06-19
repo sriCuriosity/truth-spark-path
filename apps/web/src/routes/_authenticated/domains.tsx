@@ -1,4 +1,4 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { AppShell } from "@/components/app-shell";
@@ -160,7 +160,7 @@ const DOMAIN_CONTENT: Record<string, Array<{
   ]
 };
 
-const DOMAINS = [
+const HARDCODED_DOMAINS = [
   { slug: "social-skills", name: "Social Skills & Human Dynamics", category: "Foundational", difficulty: "Core", desc: "Reading rooms, holding disagreement, building trust without performance." },
   { slug: "how-society-works", name: "How Society Works", category: "Foundational", difficulty: "Core", desc: "Power, incentives, institutions and why systems behave as they do." },
   { slug: "emotional-intelligence", name: "Emotional Intelligence", category: "Foundational", difficulty: "Core", desc: "Knowing what you feel before it runs you." },
@@ -184,9 +184,29 @@ function DomainsPage() {
   const [reflectionBody, setReflectionBody] = useState("");
   const [saving, setSaving] = useState(false);
 
+  // Fetch dynamic domains from database
+  const { data: dbDomains = [] } = useQuery({
+    queryKey: ["domains-lookup"],
+    queryFn: async () => {
+      const { data } = await supabase.from("domains").select("*").eq("is_active", true).order("sort_order");
+      return data ?? [];
+    },
+  });
+
+  const domains = dbDomains.length > 0 
+    ? dbDomains.map((d) => ({
+        slug: d.slug,
+        name: d.name,
+        category: "Foundational",
+        difficulty: "Core",
+        desc: d.description || "",
+        color: d.color,
+      }))
+    : HARDCODED_DOMAINS;
+
   // Warning modal variables
   const [warningOpen, setWarningOpen] = useState(false);
-  const [warningDomain, setWarningDomain] = useState<(typeof DOMAINS)[0] | null>(null);
+  const [warningDomain, setWarningDomain] = useState<(typeof HARDCODED_DOMAINS)[0] | null>(null);
   const [activeTags, setActiveTags] = useState<SensitivityTag[]>([]);
 
   const { data: allTags = [] } = useQuery({
@@ -197,11 +217,11 @@ function DomainsPage() {
     },
   });
 
-  const activeDomain = DOMAINS.find((d) => d.slug === activeDomainSlug);
+  const activeDomain = domains.find((d) => d.slug === activeDomainSlug);
   const activeNodes = activeDomainSlug ? (DOMAIN_CONTENT[activeDomainSlug] || []) : [];
   const selectedNode = activeNodes.find((n) => n.id === selectedNodeId);
 
-  async function handleDomainSelect(domain: (typeof DOMAINS)[0]) {
+  async function handleDomainSelect(domain: (typeof HARDCODED_DOMAINS)[0]) {
     const tags = allTags.filter((t) => t.content_node_id === domain.slug);
     if (tags.length > 0 && activeDomainSlug !== domain.slug) {
       setWarningDomain(domain);
@@ -271,13 +291,12 @@ function DomainsPage() {
         {/* Main Content Area */}
         <div className="space-y-6">
           <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-            {DOMAINS.map((d) => {
+            {domains.map((d) => {
               const hasWarning = allTags.some((t) => t.content_node_id === d.slug);
               const isActive = activeDomainSlug === d.slug;
               return (
-                <button
+                <div
                   key={d.slug}
-                  onClick={() => handleDomainSelect(d)}
                   className={`nexus-card p-5 text-left transition relative overflow-hidden flex flex-col justify-between ${
                     isActive ? "border-primary/80 bg-primary/5 ring-1 ring-primary/30" : "hover:border-primary/40"
                   }`}
@@ -292,10 +311,22 @@ function DomainsPage() {
                     <h3 className="mt-2 font-display text-md font-bold text-foreground">{d.name}</h3>
                     <p className="mt-2 text-xs text-muted-foreground line-clamp-3 leading-relaxed">{d.desc}</p>
                   </div>
-                  <span className="mt-4 text-[10px] font-semibold text-primary uppercase">
-                    {isActive ? "Viewing Nodes" : "Explore →"}
-                  </span>
-                </button>
+                  <div className="mt-4 flex items-center justify-between">
+                    <button
+                      onClick={() => handleDomainSelect(d)}
+                      className="text-[10px] font-semibold text-primary uppercase hover:underline cursor-pointer"
+                    >
+                      {isActive ? "Viewing Nodes" : "Explore →"}
+                    </button>
+                    <Link
+                      to="/cortex"
+                      search={{ domain: d.name }}
+                      className="text-[10px] font-semibold text-accent-teal hover:underline flex items-center gap-1 uppercase"
+                    >
+                      <Brain className="h-3.5 w-3.5" /> My Entries
+                    </Link>
+                  </div>
+                </div>
               );
             })}
           </div>

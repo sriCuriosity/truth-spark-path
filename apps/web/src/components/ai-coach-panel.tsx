@@ -132,8 +132,25 @@ Generate one highly tailored, single, deep, thought-provoking Socratic question 
         .select()
         .single();
 
-
       if (error) throw error;
+
+      // Log Socratic question generation to AI audit log
+      const encoder = new TextEncoder();
+      const promptData = encoder.encode(systemPrompt + " | " + q);
+      const hashBuffer = await window.crypto.subtle.digest("SHA-256", promptData);
+      const promptHashHex = Array.from(new Uint8Array(hashBuffer))
+        .map(b => b.toString(16).padStart(2, '0'))
+        .join('');
+
+      await supabase.from("ai_audit_log").insert({
+        user_id: context.userId,
+        function_name: "socratic-coach-question",
+        model: "nvidia/nemotron-3-nano-omni-30b-a3b-reasoning",
+        prompt_hash: promptHashHex,
+        action_description: `Generated Socratic question under ${voice.label} persona`,
+        risk_score: 0.0,
+        flags: []
+      });
 
       setQuestion(q);
       setQuestionId(interaction.id);
@@ -207,6 +224,24 @@ You MUST respond with a valid JSON object matching this structure EXACTLY (do no
         alternative_framings: parsedExp.alternative_framings,
         bias_flags: parsedExp.bias_flags,
         source_frameworks: parsedExp.source_frameworks,
+      });
+
+      // Log Socratic explanation/meta-audit to AI audit log
+      const encoder = new TextEncoder();
+      const promptData = encoder.encode(explainPrompt + " | " + JSON.stringify(parsedExp));
+      const hashBuffer = await window.crypto.subtle.digest("SHA-256", promptData);
+      const promptHashHex = Array.from(new Uint8Array(hashBuffer))
+        .map(b => b.toString(16).padStart(2, '0'))
+        .join('');
+
+      await supabase.from("ai_audit_log").insert({
+        user_id: context.userId,
+        function_name: "socratic-coach-explanation",
+        model: "nvidia/nemotron-3-nano-omni-30b-a3b-reasoning",
+        prompt_hash: promptHashHex,
+        action_description: `Generated pedagogical meta-cognitive audit for question`,
+        risk_score: 0.0,
+        flags: []
       });
 
 

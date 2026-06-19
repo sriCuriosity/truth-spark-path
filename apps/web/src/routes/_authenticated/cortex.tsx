@@ -1,15 +1,21 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { useState } from "react";
-import { Plus } from "lucide-react";
+import { Plus, X } from "lucide-react";
 import { BarChart, Bar, XAxis, YAxis, ResponsiveContainer, Tooltip } from "recharts";
 import { supabase } from "@/integrations/supabase/client";
 import { AppShell } from "@/components/app-shell";
 import { CortexEntryCard, ENTRY_TYPE_META, type CortexEntry, type EntryType } from "@/components/cortex-entry-card";
 import { AddToCortexModal } from "@/components/add-to-cortex-modal";
+import { z } from "zod";
+
+const cortexSearchSchema = z.object({
+  domain: z.string().optional(),
+});
 
 export const Route = createFileRoute("/_authenticated/cortex")({
   head: () => ({ meta: [{ title: "NEXUS — My Cortex" }] }),
+  validateSearch: (search) => cortexSearchSchema.parse(search),
   component: CortexPage,
 });
 
@@ -17,6 +23,8 @@ const FILTERS = ["all", "action", "perspective_shift", "experiment", "contributi
 type Filter = (typeof FILTERS)[number];
 
 function CortexPage() {
+  const { domain } = Route.useSearch();
+  const navigate = Route.useNavigate();
   const [filter, setFilter] = useState<Filter>("all");
   const [addOpen, setAddOpen] = useState(false);
 
@@ -30,7 +38,11 @@ function CortexPage() {
     },
   });
 
-  const filtered = filter === "all" ? entries : entries.filter(e => e.entry_type === filter);
+  const filtered = entries.filter(e => {
+    const matchesType = filter === "all" || e.entry_type === filter;
+    const matchesDomain = !domain || (e.domains && e.domains.some((d: string) => d.toLowerCase() === domain.toLowerCase()));
+    return matchesType && matchesDomain;
+  });
 
   const byType = (Object.keys(ENTRY_TYPE_META) as EntryType[]).map(t => ({
     name: ENTRY_TYPE_META[t].label,
@@ -61,6 +73,18 @@ function CortexPage() {
               );
             })}
           </div>
+
+          {domain && (
+            <div className="mb-4 flex items-center justify-between rounded-lg border border-primary/20 bg-primary/5 px-4 py-2.5 text-xs text-primary">
+              <span className="font-medium">Filtering by Domain: {domain}</span>
+              <button
+                onClick={() => navigate({ to: "/cortex", search: { domain: undefined } })}
+                className="flex items-center gap-1 hover:text-foreground hover:bg-primary/10 rounded px-1.5 py-0.5 transition font-medium cursor-pointer"
+              >
+                <X className="h-3.5 w-3.5" /> Clear filter
+              </button>
+            </div>
+          )}
 
           {filtered.length === 0 ? (
             <div className="nexus-card p-10 text-center">
