@@ -1,4 +1,4 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { motion } from "framer-motion";
 import { Plus, Sparkle, Layers } from "lucide-react";
@@ -35,10 +35,19 @@ const STATUS_CLASSES: Record<string, string> = {
 };
 
 function Dashboard() {
+  const navigate = useNavigate();
   const [addOpen, setAddOpen] = useState(false);
   const [showCelebration, setShowCelebration] = useState(false);
   const [celebrationNewTier, setCelebrationNewTier] = useState<TierName | null>(null);
   const [celebrationPrevTier, setCelebrationPrevTier] = useState<TierName | null>(null);
+  const [isGuest, setIsGuest] = useState(false);
+
+  useEffect(() => {
+    const guestMode = localStorage.getItem("nexus_guest_mode");
+    if (guestMode === "true") {
+      setIsGuest(true);
+    }
+  }, []);
 
   const { data: profile } = useQuery({
     queryKey: ["me-profile"],
@@ -141,6 +150,25 @@ function Dashboard() {
 
   return (
     <AppShell title="Dashboard">
+      {isGuest && (
+        <div className="mb-6 rounded-md border border-accent-amber/40 bg-accent-amber/10 p-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm font-medium text-accent-amber">Guest Mode Active</p>
+              <p className="text-xs text-muted-foreground">Limited access. Sign up to save your progress and unlock full features.</p>
+            </div>
+            <button
+              onClick={() => {
+                localStorage.removeItem("nexus_guest_mode");
+                navigate({ to: "/auth" });
+              }}
+              className="rounded-md bg-accent-amber px-3 py-1.5 text-xs font-medium text-black hover:opacity-90"
+            >
+              Sign Up
+            </button>
+          </div>
+        </div>
+      )}
       <div className="grid gap-6 lg:grid-cols-[320px_1fr_280px]">
         <div className="space-y-4">
           <div className="nexus-card p-5">

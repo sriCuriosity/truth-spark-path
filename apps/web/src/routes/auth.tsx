@@ -15,6 +15,7 @@ export const Route = createFileRoute("/auth")({
 function AuthPage() {
   const navigate = useNavigate();
   const [mode, setMode] = useState<"signin" | "signup" | "passkey_register">("signin");
+  const [isGuest, setIsGuest] = useState(false);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
@@ -258,6 +259,12 @@ function AuthPage() {
     }
   }
 
+  async function handleGuestLogin() {
+    localStorage.setItem("nexus_guest_mode", "true");
+    toast.success("Guest mode activated. Limited access enabled.");
+    navigate({ to: "/dashboard" });
+  }
+
   return (
     <div className="relative grid min-h-screen place-items-center overflow-hidden bg-background px-4">
       <div className="pointer-events-none absolute -top-32 left-1/2 h-[500px] w-[700px] -translate-x-1/2 rounded-full bg-primary/15 blur-[160px]" />
@@ -318,12 +325,24 @@ function AuthPage() {
             <button
               onClick={handlePasskeyLogin}
               disabled={loading}
-              className="mb-4 flex w-full items-center justify-center gap-2 rounded-md border border-accent-teal/40 bg-elevated px-4 py-2.5 text-sm font-medium hover:bg-elevated/70 disabled:opacity-50 text-accent-teal"
+              className="mb-3 flex w-full items-center justify-center gap-2 rounded-md border border-accent-teal/40 bg-elevated px-4 py-2.5 text-sm font-medium hover:bg-elevated/70 disabled:opacity-50 text-accent-teal"
             >
               <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2">
                 <path strokeLinecap="round" strokeLinejoin="round" d="M12 11c0 3.517-1.009 6.799-2.753 9.571m-3.44-2.04l.054-.09A13.916 13.916 0 009 11a13.916 13.916 0 00-3.14-9.336L5 1.5M9 11h3m2.5 0h3.5m-3.5 0a3.5 3.5 0 11-7 0 3.5 3.5 0 017 0z" />
               </svg>
               Sign in with Passkey
+            </button>
+
+            <button
+              onClick={handleGuestLogin}
+              disabled={loading}
+              className="mb-4 flex w-full items-center justify-center gap-2 rounded-md border border-muted-foreground/30 bg-elevated px-4 py-2.5 text-sm font-medium hover:bg-elevated/70 disabled:opacity-50 text-muted-foreground"
+            >
+              <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                <path strokeLinecap="round" strokeLinejoin="round" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+              </svg>
+              Continue as Guest
             </button>
 
             <div className="my-4 flex items-center gap-3">
