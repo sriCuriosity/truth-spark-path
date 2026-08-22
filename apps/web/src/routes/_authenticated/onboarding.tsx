@@ -188,18 +188,19 @@ function Onboarding() {
         completed_at: new Date().toISOString(),
       }, { onConflict: "user_id,module_id" });
 
-      // Award XP
-      await supabase.from("xp_ledger").insert({
-        user_id: u.user.id,
-        amount: 50,
-        source: "deprogram_module",
-        metadata: { module_id: activeModule.id }
+      // Award XP via secure RPC
+      await supabase.rpc("award_xp", {
+        p_user_id: u.user.id,
+        p_amount: 50,
+        p_source: "deprogram_module",
+        p_metadata: { module_id: activeModule.id }
       });
 
+      const waitTime = activeModuleIdx === DEPROGRAM_MODULES.length - 1 ? 60 : 0;
       toast.success("Evidence log added. Proceeding to reflection.");
       setEvidenceSubmitted(true);
-      setTimerActive(true);
-      setSecondsLeft(60);
+      setTimerActive(waitTime > 0);
+      setSecondsLeft(waitTime);
     } catch (e: any) {
       toast.error(e.message ?? "Could not submit evidence");
     } finally { setSaving(false); }
@@ -228,7 +229,7 @@ function Onboarding() {
       setEvidenceBody("");
       setEvidenceSubmitted(false);
       setReflectionText("");
-      setSecondsLeft(60);
+      setSecondsLeft(0);
       setTimerActive(false);
     } else {
       // Deprogramming complete!
@@ -523,7 +524,11 @@ function Onboarding() {
                     </div>
                     <div>
                       <h5 className="text-sm font-semibold">Adrenaline Sink Contemplation Mode</h5>
-                      <p className="text-xs text-muted-foreground">Take 60 seconds to sit with this challenge. Document what you actually felt inside your body when questioning this bias.</p>
+                      <p className="text-xs text-muted-foreground">
+                        {activeModuleIdx === DEPROGRAM_MODULES.length - 1 
+                          ? "Take 60 seconds to sit with this challenge. Document what you actually felt inside your body when questioning this bias."
+                          : "Document what you actually felt inside your body when questioning this bias."}
+                      </p>
                     </div>
                   </div>
 

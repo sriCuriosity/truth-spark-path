@@ -259,10 +259,12 @@ function AuthPage() {
     }
   }
 
-  async function handleGuestLogin() {
-    localStorage.setItem("nexus_guest_mode", "true");
-    toast.success("Guest mode activated. Limited access enabled.");
-    navigate({ to: "/dashboard" });
+  function handleGuestLogin() {
+    const randomId = Math.random().toString(36).substring(2, 10);
+    setEmail(`guest-${randomId}@nexus.app`);
+    setPassword(`Guest-${Math.random().toString(36).substring(2, 10)}!`);
+    setMode("signup");
+    toast.success("Guest details auto-filled. Click 'Create account' to proceed.");
   }
 
   return (
